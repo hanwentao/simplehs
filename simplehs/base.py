@@ -30,7 +30,11 @@ class Character(object):
         return self._base_health
 
     def take_damage(self, damage):
+        logging.info('Character [%s] took %d damage', self.name, damage)
         self._base_health -= damage
+
+    def die(self):
+        logging.info('Character [%s] died', self.name)
 
 
 class Hero(Character):
@@ -45,6 +49,19 @@ class Minion(Character):
 
     def __init__(self, name, attack, health):
         Character.__init__(self, name, attack, health)
+        self._owner = None
+
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    def owner(self, value):
+        self._owner = value
+
+    def die(self):
+        Character.die(self)
+        self._owner.battlefield.remove(self)
 
 
 class Weapon(object):
@@ -240,6 +257,7 @@ class Match(object):
         card = me.hand.pop(card_index)
         minion = card.summon_minion()
         me.battlefield.append(minion)
+        minion.owner = me
         logging.info('Player <%s> played a card (%s) to summon a minion [%s]',
                      me.name, card.name, minion.name)
 
@@ -264,3 +282,7 @@ class Match(object):
                      attacker.name, attackee.name)
         attackee.take_damage(attacker.attack)
         attacker.take_damage(attackee.attack)
+        if attackee.health <= 0:
+            attackee.die()
+        if attacker.health <= 0:
+            attacker.die()
