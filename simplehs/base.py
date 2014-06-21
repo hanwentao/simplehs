@@ -10,6 +10,9 @@ class Character(object):
         self._name = name
         self._base_attack = attack
         self._base_health = health
+        self._sleeping = False
+        self._num_attacks_allowed = 1
+        self._num_attacks_done = 0
 
     def __str__(self):
         return str((self.name, self.attack, self.health))
@@ -29,9 +32,29 @@ class Character(object):
     def health(self):
         return self._base_health
 
+    def reset_attack_status(self):
+        self._sleeping = False
+        self._num_attacks_done = 0
+
+    def attack_(self, target):
+        if self._sleeping:
+            logging.error('Cannot attack: sleeping')
+            return
+        if self._num_attacks_done >= self._num_attacks_allowed:
+            logging.error('Cannot attack anymore: %d >= %d',
+                          self._num_attacks_done, self._num_attacks_allowed)
+            return
+        logging.info('Character [%s] attacked character [%s]',
+                     self.name, target.name)
+        self._num_attacks_done += 1
+        target.take_damage(self.attack)
+        self.take_damage(target.attack)
+
     def take_damage(self, damage):
         logging.info('Character [%s] took %d damage', self.name, damage)
         self._base_health -= damage
+        if self._base_health <= 0:
+            self.die()
 
     def die(self):
         logging.info('Character [%s] died', self.name)
@@ -50,6 +73,7 @@ class Minion(Character):
     def __init__(self, name, attack, health):
         Character.__init__(self, name, attack, health)
         self._owner = None
+        self._sleeping = True
 
     @property
     def owner(self):
@@ -275,6 +299,8 @@ class Match(object):
         logging.info('Turn #%d began', self._turn_num)
         me.regenerate()
         me.draw()
+        for minion in me.battlefield:
+            minion.reset_attack_status()
 
     def play(self, me, enemy, card_index):
         card_index = int(card_index)
@@ -310,11 +336,4 @@ class Match(object):
                 logging.error('Invalid attackee index: %d', attackee_index)
                 return
             attackee = enemy.battlefield[attackee_index]
-        logging.info('Character [%s] attacked character [%s]',
-                     attacker.name, attackee.name)
-        attackee.take_damage(attacker.attack)
-        attacker.take_damage(attackee.attack)
-        if attackee.health <= 0:
-            attackee.die()
-        if attacker.health <= 0:
-            attacker.die()
+        attacker.attack_(attackee)
