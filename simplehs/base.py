@@ -128,13 +128,17 @@ class Player(object):
         self._deck = client.deck[:]
         self._hand = Hand()
         self._battlefield = Battlefield()
+        self._full_mana = 0
+        self._mana = 0
 
     def __str__(self):
         return str((self.name,
                     self.hero,
-                    self.deck,
+                    self.mana,
+                    self.full_mana,
+                    self.battlefield,
                     self.hand,
-                    self.battlefield))
+                    self.deck))
 
     @property
     def client(self):
@@ -159,6 +163,19 @@ class Player(object):
     @property
     def battlefield(self):
         return self._battlefield
+
+    @property
+    def full_mana(self):
+        return self._full_mana
+
+    @property
+    def mana(self):
+        return self._mana
+
+    def regenerate(self):
+        self._full_mana = min(self._full_mana + 1, 10)
+        self._mana = self._full_mana
+        logging.info('Player <%s> regenerated %d mana', self.name, self.mana)
 
     def draw(self, num_cards=1):
         for card_num in xrange(num_cards):
@@ -256,6 +273,7 @@ class Match(object):
     def new_turn(self, me):
         self._turn_num += 1
         logging.info('Turn #%d began', self._turn_num)
+        me.regenerate()
         me.draw()
 
     def play(self, me, enemy, card_index):
@@ -263,8 +281,13 @@ class Match(object):
         if not (0 <= card_index < len(me.hand)):
             logging.error('Invalid card index: %d', card_index)
             return
-        card = me.hand.pop(card_index)
+        card = me.hand[card_index]
+        if card.cost > me.mana:
+            logging.error('Not enough mana: %d < %d', me.mana, card.cost)
+            return
+        me.hand.pop(card_index)
         minion = card.summon_minion()
+        me._mana -= card.cost
         me.battlefield.append(minion)
         minion.owner = me
         logging.info('Player <%s> played a card (%s) to summon a minion [%s]',
