@@ -243,6 +243,14 @@ class Match(object):
                 break
             else:
                 logging.error('Invalid action: %s', action)
+            if me.hero.health <= 0:
+                winner = enemy
+                loser = me
+                break
+            if enemy.hero.health <= 0:
+                winner = me
+                loser = enemy
+                break
         logging.info('Player <%s> won', winner.name)
 
     def new_turn(self, me):
