@@ -248,6 +248,7 @@ class Match(object):
     def new_turn(self, me):
         self._turn_num += 1
         logging.info('Turn #%d began', self._turn_num)
+        me.draw()
 
     def play(self, me, enemy, card_index):
         card_index = int(card_index)
