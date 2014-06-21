@@ -5,11 +5,28 @@ import readline
 from base import Client
 
 
+class DummyClient(Client):
+    """A dummy client"""
+
+    def decide(self, me, enemy):
+        return ('end', )
+
+
+class NaiveClient(Client):
+    """A naive client"""
+
+    def decide(self, me, enemy):
+        for card_index, card in enumerate(me.hand):
+            if card.cost <= me.mana:
+                return ('play', str(card_index))
+        for minion_index, minion in enumerate(me.battlefield):
+            if minion.can_attack:
+                return ('attack', str(minion_index), 'h')
+        return ('end', )
+
+
 class ConsoleClient(Client):
     """A console client"""
-
-    def __init__(self, name, hero_class, deck):
-        Client.__init__(self, name, hero_class, deck)
 
     def decide(self, me, enemy):
         while True:
