@@ -44,8 +44,8 @@ class Character(object):
 
     @property
     def can_attack(self):
-        return (not self._sleeping) and (self._num_attacks_done <
-                                         self._num_attacks_allowed)
+        return (self.attack > 0 and not self._sleeping and
+                self._num_attacks_done < self._num_attacks_allowed)
 
     def reset_attack_status(self):
         self._sleeping = False
