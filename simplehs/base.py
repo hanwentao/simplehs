@@ -32,17 +32,18 @@ class Character(object):
     def health(self):
         return self._base_health
 
+    @property
+    def can_attack(self):
+        return (not self._sleeping) and (self._num_attacks_done <
+                                         self._num_attacks_allowed)
+
     def reset_attack_status(self):
         self._sleeping = False
         self._num_attacks_done = 0
 
     def attack_(self, target):
-        if self._sleeping:
-            logging.error('Cannot attack: sleeping')
-            return
-        if self._num_attacks_done >= self._num_attacks_allowed:
-            logging.error('Cannot attack anymore: %d >= %d',
-                          self._num_attacks_done, self._num_attacks_allowed)
+        if not self.can_attack:
+            logging.error('Character [%s] cannot attack', self.name)
             return
         logging.info('Character [%s] attacked character [%s]',
                      self.name, target.name)
@@ -51,6 +52,8 @@ class Character(object):
         self.take_damage(target.attack)
 
     def take_damage(self, damage):
+        if damage <= 0:
+            return
         logging.info('Character [%s] took %d damage', self.name, damage)
         self._base_health -= damage
         if self._base_health <= 0:
