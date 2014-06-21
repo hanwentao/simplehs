@@ -1,6 +1,7 @@
 # Base classes
 
 import logging
+import random
 
 
 class Character(object):
@@ -152,7 +153,7 @@ class Player(object):
         self._client = client
         self._name = client.name
         self._hero = client.hero_class()
-        self._deck = client.deck[:]
+        self._deck = Deck(client.deck)
         self._hand = Hand()
         self._battlefield = Battlefield()
         self._full_mana = 0
@@ -213,7 +214,10 @@ class Player(object):
 
 
 class Deck(list):
-    pass
+    """A deck of cards"""
+
+    def shuffle(self, random):
+        random.shuffle(self)
 
 
 class Hand(list):
@@ -251,14 +255,17 @@ class Client(object):
 class Match(object):
     """A match"""
 
-    def __init__(self, client1, client2):
+    def __init__(self, client1, client2, seed=None):
         self._clients = [client1, client2]
+        self._random = random.Random(seed)
 
     def run(self):
         self._turn_num = 0
         player1 = Player(self._clients[0])
         player2 = Player(self._clients[1])
         self._players = [player1, player2]
+        player1.deck.shuffle(self._random)
+        player2.deck.shuffle(self._random)
         player1.draw(3)
         player2.draw(4)
         # TODO: Add The Coin
