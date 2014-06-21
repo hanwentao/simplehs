@@ -222,16 +222,35 @@ class Player(object):
     def draw(self, num_cards=1):
         for card_num in xrange(num_cards):
             # TODO: Check for fatigue
-            card = self.deck.pop(0)
-            self.hand.append(card)
-            logging.info('Player <%s> drew a card (%s)', self.name, card.name)
+            success, card_or_fatigue = self.deck.draw()
+            if success:
+                card = card_or_fatigue
+                self.hand.append(card)
+                logging.info('Player <%s> drew a card (%s)',
+                             self.name, card.name)
+            else:
+                fatigue = card_or_fatigue
+                logging.info('Player <%s> took a fatigue of %d',
+                             self.name, fatigue)
+                self.hero.take_damage(fatigue)
 
 
 class Deck(list):
     """A deck of cards"""
 
+    def __init__(self, *args, **kwargs):
+        list.__init__(self, *args, **kwargs)
+        self._fatigue = 0
+
     def shuffle(self, random):
         random.shuffle(self)
+
+    def draw(self):
+        if len(self) > 0:
+            return (True, self.pop(0))
+        else:
+            self._fatigue += 1
+            return (False, self._fatigue)
 
 
 class Hand(list):
