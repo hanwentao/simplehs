@@ -1,6 +1,6 @@
 # Client classes
 
-import sys
+import readline
 
 from base import Client
 
@@ -13,13 +13,10 @@ class ConsoleClient(Client):
 
     def decide(self, me, enemy):
         while True:
-            sys.stdout.write('Enter an action: ')
-            sys.stdout.flush()
-            line = sys.stdin.readline()
+            line = raw_input('Enter an action: ')
             tokens = line.split()
             if len(tokens) == 0:
-                sys.stdout.write('ERROR: Empty action\n')
-                sys.stdout.flush()
+                print 'ERROR: Empty action'
                 continue
             if tokens[0] == 'play':
                 action = ('play', tokens[1])
@@ -34,6 +31,5 @@ class ConsoleClient(Client):
                 action = ('concede', )
                 break
             else:
-                sys.stdout.write('ERROR: Unknown action\n')
-                sys.stdout.flush()
+                print 'ERROR: Unknown action'
         return action
