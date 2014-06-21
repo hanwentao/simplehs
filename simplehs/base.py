@@ -8,6 +8,7 @@ class Character(object):
     """A character"""
 
     def __init__(self, name, attack, health):
+        self._owner = None
         self._name = name
         self._base_attack = attack
         self._base_health = health
@@ -20,6 +21,14 @@ class Character(object):
 
     def __repr__(self):
         return str(self)
+
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    def owner(self, value):
+        self._owner = value
 
     @property
     def name(self):
@@ -70,22 +79,17 @@ class Hero(Character):
     def __init__(self, name, health):
         Character.__init__(self, name, 0, health)
 
+    def die(self):
+        Character.die(self)
+        raise MatchResult(self.owner.opponent, self.owner)
+
 
 class Minion(Character):
     """A minion"""
 
     def __init__(self, name, attack, health):
         Character.__init__(self, name, attack, health)
-        self._owner = None
         self._sleeping = True
-
-    @property
-    def owner(self):
-        return self._owner
-
-    @owner.setter
-    def owner(self, value):
-        self._owner = value
 
     def die(self):
         Character.die(self)
@@ -151,8 +155,10 @@ class Player(object):
 
     def __init__(self, client):
         self._client = client
+        self._opponent = None
         self._name = client.name
         self._hero = client.hero_class()
+        self._hero.owner = self
         self._deck = Deck(client.deck)
         self._hand = Hand()
         self._battlefield = Battlefield()
@@ -166,11 +172,19 @@ class Player(object):
                     self.full_mana,
                     self.battlefield,
                     self.hand,
-                    self.deck))
+                    ))
 
     @property
     def client(self):
         return self._client
+
+    @property
+    def opponent(self):
+        return self._opponent
+
+    @opponent.setter
+    def opponent(self, value):
+        self._opponent = value
 
     @property
     def name(self):
@@ -252,6 +266,22 @@ class Client(object):
         pass
 
 
+class MatchResult(Exception):
+    """Exception indicates the result of a match"""
+
+    def __init__(self, winner, loser):
+        self._winner = winner
+        self._loser = loser
+
+    @property
+    def winner(self):
+        return self._winner
+
+    @property
+    def loser(self):
+        return self._loser
+
+
 class Match(object):
     """A match"""
 
@@ -263,45 +293,44 @@ class Match(object):
         self._turn_num = 0
         player1 = Player(self._clients[0])
         player2 = Player(self._clients[1])
+        player1.opponent = player2
+        player2.opponent = player1
         self._players = [player1, player2]
         player1.deck.shuffle(self._random)
         player2.deck.shuffle(self._random)
-        player1.draw(3)
-        player2.draw(4)
-        # TODO: Add The Coin
-        me = self._players[0]
-        enemy = self._players[1]
-        self.new_turn(me)
-        while True:
-            print enemy
-            print me
-            action = me.client.decide(me, enemy)  # TODO: Add events
-            if action[0] == 'play':  # Play a card
-                card_index = action[1]
-                self.play(me, enemy, card_index)
-            elif action[0] == 'attack':  # Order a minion to attack
-                attacker_index = action[1]
-                attackee_index = action[2]
-                self.attack(me, enemy, attacker_index, attackee_index)
-            elif action[0] == 'end':  # End this turn
-                # TODO: end of turn
-                me, enemy = enemy, me
-                self.new_turn(me)
-                # TODO: begin of turn
-            elif action[0] == 'concede':  # Concede
-                winner = enemy
-                loser = me
-                break
-            else:
-                logging.error('Invalid action: %s', action)
-            if me.hero.health <= 0:
-                winner = enemy
-                loser = me
-                break
-            if enemy.hero.health <= 0:
-                winner = me
-                loser = enemy
-                break
+
+        try:
+            player1.draw(3)
+            player2.draw(4)
+            # TODO: Add The Coin
+            me = self._players[0]
+            enemy = self._players[1]
+            self.new_turn(me)
+            while True:
+                print enemy
+                print me
+                action = me.client.decide(me, enemy)  # TODO: Add events
+                if action[0] == 'play':  # Play a card
+                    card_index = action[1]
+                    self.play(me, enemy, card_index)
+                elif action[0] == 'attack':  # Order a minion to attack
+                    attacker_index = action[1]
+                    attackee_index = action[2]
+                    self.attack(me, enemy, attacker_index, attackee_index)
+                elif action[0] == 'end':  # End this turn
+                    # TODO: end of turn
+                    me, enemy = enemy, me
+                    self.new_turn(me)
+                    # TODO: begin of turn
+                elif action[0] == 'concede':  # Concede
+                    raise MatchResult(enemy, me)
+                else:
+                    logging.error('Invalid action: %s', action)
+        except MatchResult as match_result:
+            winner = match_result.winner
+            loser = match_result.loser
+        except:
+            raise
         logging.info('Player <%s> won', winner.name)
 
     def new_turn(self, me):
