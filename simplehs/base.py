@@ -158,6 +158,7 @@ class Player(object):
         self._client = client
         self._opponent = None
         self._name = client.name
+        self._first = None
         self._hero = client.hero_class()
         self._hero.owner = self
         self._deck = Deck(client.deck)
@@ -195,6 +196,14 @@ class Player(object):
     @property
     def name(self):
         return self._name
+
+    @property
+    def first(self):
+        return self._first
+
+    @first.setter
+    def first(self, value):
+        self._first = value
 
     @property
     def hero(self):
@@ -355,6 +364,8 @@ class Match(object):
         player2.opponent = player1
         if self.random.random() >= 0.5:
             player1, player2 = player2, player1
+        player1.first = True
+        player2.first = False
         self._players = [player1, player2]
         player1.deck.shuffle(self._random)
         player2.deck.shuffle(self._random)
@@ -394,7 +405,7 @@ class Match(object):
         except:
             raise
         logging.info('Player <%s> won', winner.name)
-        return (winner.client, self._turn_num)
+        return (winner.client, winner.first, self._turn_num)
 
     def new_turn(self, me):
         self._turn_num += 1

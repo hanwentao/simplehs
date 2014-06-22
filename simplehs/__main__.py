@@ -62,8 +62,9 @@ def main(args=sys.argv[1:]):
     for match_num in xrange(num_matches):
         match_seed = random.random()
         match = Match(client1, client2, match_seed)
-        winner, num_turns = match.run()
+        winner, first, num_turns = match.run()
         result[winner] += 1
+        result[first] += 1
         max_num_turns = max(max_num_turns, num_turns)
     print result, max_num_turns
 
