@@ -76,7 +76,11 @@ def main(args=sys.argv[1:]):
         result[winner] += 1
         result[first] += 1
         max_num_turns = max(max_num_turns, num_turns)
-    print result, max_num_turns
+    print '# of wins of %s: %d' % (client1.name, result[client1])
+    print '# of wins of %s: %d' % (client2.name, result[client2])
+    print '# of wins of first player: %d' % result[True]
+    print '# of wins of second player: %d' % result[False]
+    print 'Maximum # of turns:', max_num_turns
 
 
 if __name__ == '__main__':
