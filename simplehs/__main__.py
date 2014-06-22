@@ -7,6 +7,7 @@ import random
 import sys
 from collections import defaultdict
 
+from base import Configuration
 from base import Deck
 from base import Match
 from cards import *
@@ -27,6 +28,8 @@ def main(args=sys.argv[1:]):
                         help='number of matches to play')
     parser.add_argument('-s', '--seed', type=int, default=1,
                         help='random seed')
+    parser.add_argument('-c', '--no-coin', action='store_true',
+                        help='no coin for the second player')
     parser.add_argument('--client1', default='DummyClient',
                         help='client class of player 1')
     parser.add_argument('--client2', default='DummyClient',
@@ -46,6 +49,9 @@ def main(args=sys.argv[1:]):
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
+    config = Configuration()
+    if args.no_coin:
+        config.coin = False
     num_matches = args.matches
     seed = args.seed
     client1_class = globals()[args.client1]
@@ -71,7 +77,8 @@ def main(args=sys.argv[1:]):
     max_num_turns = 0
     for match_num in xrange(num_matches):
         match_seed = random.random()
-        match = Match(client1, client2, match_seed, display=args.display)
+        match = Match(client1, client2, match_seed, display=args.display,
+                      config=config)
         winner, first, num_turns = match.run()
         result[winner] += 1
         result[first] += 1

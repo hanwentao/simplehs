@@ -368,6 +368,21 @@ class Client(object):
         return ('end', )
 
 
+class Configuration(object):
+    """Match configuration"""
+
+    def __init__(self, *args, **kwargs):
+        self._config = {}
+
+    @property
+    def coin(self):
+        return self._config.get('coin', True)
+
+    @coin.setter
+    def coin(self, value):
+        self._config['coin'] = value
+
+
 class MatchResult(Exception):
     """Exception indicates the result of a match"""
 
@@ -387,10 +402,11 @@ class MatchResult(Exception):
 class Match(object):
     """A match"""
 
-    def __init__(self, client1, client2, seed=None, display=False):
+    def __init__(self, client1, client2, seed=None, display=False, config=None):
         self._clients = [client1, client2]
         self._random = random.Random(seed)
         self._display = display
+        self._config = config if config is not None else Configuration()
 
     @property
     def random(self):
@@ -415,11 +431,12 @@ class Match(object):
             player2.draw(4)
             player1.replace()
             player2.replace()
-            coin = TheCoin()
-            coin.owner = player2
-            player2.hand.append(coin)
-            logging.info('Player <%s> obtained a card (%s)',
-                         player2.name, coin.name)
+            if self._config.coin:
+                coin = TheCoin()
+                coin.owner = player2
+                player2.hand.append(coin)
+                logging.info('Player <%s> obtained a card (%s)',
+                             player2.name, coin.name)
             me = self._players[0]
             enemy = self._players[1]
             self.new_turn(me)
