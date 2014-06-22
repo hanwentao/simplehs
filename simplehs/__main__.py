@@ -19,6 +19,8 @@ def main(args=sys.argv[1:]):
         description='Simulate a Hearthstone match.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='be verbose (debug information)')
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='be quiet (only error information)')
     parser.add_argument('-d', '--display', action='store_true',
                         help='display the board every time')
     parser.add_argument('-n', '--matches', type=int, default=1,
@@ -38,7 +40,9 @@ def main(args=sys.argv[1:]):
     parser.add_argument('--hero2', default='InnKeeper',
                         help='hero class of player 2')
     args = parser.parse_args()
-    if args.verbose:
+    if args.quiet:
+        logging.basicConfig(level=logging.ERROR)
+    elif args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
