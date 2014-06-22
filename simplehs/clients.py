@@ -7,9 +7,7 @@ from base import Client
 
 class DummyClient(Client):
     """A dummy client"""
-
-    def decide(self, me, enemy):
-        return ('end', )
+    pass
 
 
 class NaiveClient(Client):
@@ -27,6 +25,13 @@ class NaiveClient(Client):
 
 class ConsoleClient(Client):
     """A console client"""
+
+    def replace(self, me):
+        line = raw_input('Which cards to replace: ')
+        tokens = line.split()
+        index_list = [int(token) for token in tokens]
+        action = ('replace', index_list)
+        return action
 
     def decide(self, me, enemy):
         while True:

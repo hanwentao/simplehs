@@ -153,7 +153,8 @@ class WeaponCard(Card):
 class Player(object):
     """A player"""
 
-    def __init__(self, client):
+    def __init__(self, match, client):
+        self._match = match
         self._client = client
         self._opponent = None
         self._name = client.name
@@ -172,7 +173,12 @@ class Player(object):
                     self.full_mana,
                     self.battlefield,
                     self.hand,
-                    ))
+                    self.deck,
+                   ))
+
+    @property
+    def match(self):
+        return self._match
 
     @property
     def client(self):
@@ -215,11 +221,13 @@ class Player(object):
         return self._mana
 
     def regenerate(self):
+        """Regenerate mana crystals."""
         self._full_mana = min(self._full_mana + 1, 10)
         self._mana = self._full_mana
         logging.info('Player <%s> regenerated %d mana', self.name, self.mana)
 
     def draw(self, num_cards=1):
+        """Draw some cards."""
         for card_num in xrange(num_cards):
             # TODO: Check for fatigue
             success, card_or_fatigue = self.deck.draw()
@@ -233,6 +241,13 @@ class Player(object):
                 logging.info('Player <%s> took a fatigue of %d',
                              self.name, fatigue)
                 self.hero.take_damage(fatigue)
+
+    def replace(self):
+        """Replace the starting hand."""
+        card_index_list = self.client.replace(self)[1]
+        cards = self.hand.remove_(card_index_list)
+        self.draw(len(card_index_list))
+        self.deck.put_back(cards, self.match.random)
 
 
 class Deck(list):
@@ -252,9 +267,20 @@ class Deck(list):
             self._fatigue += 1
             return (False, self._fatigue)
 
+    def put_back(self, cards, random):
+        for card in cards:
+            index = random.randint(0, len(self))
+            self.insert(index, card)
+
 
 class Hand(list):
-    pass
+    """A hand of cards"""
+
+    def remove_(self, index_list):
+        removed_cards = [self[index] for index in index_list]
+        for card in removed_cards:
+            self.remove(card)
+        return removed_cards
 
 
 class Battlefield(list):
@@ -281,8 +307,11 @@ class Client(object):
     def deck(self):
         return self._deck
 
+    def replace(self, me):
+        return ('replace', [])
+
     def decide(self, me, enemy):
-        pass
+        return ('end', )
 
 
 class MatchResult(Exception):
@@ -308,10 +337,14 @@ class Match(object):
         self._clients = [client1, client2]
         self._random = random.Random(seed)
 
+    @property
+    def random(self):
+        return self._random
+
     def run(self):
         self._turn_num = 0
-        player1 = Player(self._clients[0])
-        player2 = Player(self._clients[1])
+        player1 = Player(self, self._clients[0])
+        player2 = Player(self, self._clients[1])
         player1.opponent = player2
         player2.opponent = player1
         self._players = [player1, player2]
@@ -321,6 +354,8 @@ class Match(object):
         try:
             player1.draw(3)
             player2.draw(4)
+            player1.replace()
+            player2.replace()
             # TODO: Add The Coin
             me = self._players[0]
             enemy = self._players[1]

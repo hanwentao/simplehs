@@ -19,9 +19,9 @@ def main(args=sys.argv[1:]):
         description='Simulate a Hearthstone match.')
     parser.add_argument('-s', '--seed', type=int, default=1,
                         help='random seed')
-    parser.add_argument('--client1', default='NaiveClient',
+    parser.add_argument('--client1', default='DummyClient',
                         help='client class of player 1')
-    parser.add_argument('--client2', default='NaiveClient',
+    parser.add_argument('--client2', default='DummyClient',
                         help='client class of player 2')
     parser.add_argument('--name1', default='Alice',
                         help='name of player 1')
