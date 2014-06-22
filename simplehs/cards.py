@@ -8,6 +8,12 @@ from base import WeaponCard
 
 # 0 mana
 
+class Wisp(MinionCard):
+    """Wisp"""
+
+    def __init__(self):
+        MinionCard.__init__(self, 'Wisp', 0, 1, 1)
+
 # 1 mana
 
 class MurlocRaider(MinionCard):

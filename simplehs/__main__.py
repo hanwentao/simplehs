@@ -61,7 +61,8 @@ def main(args=sys.argv[1:]):
     hero1_class = globals()[args.hero1]
     hero2_class = globals()[args.hero2]
     deck = Deck(
-        [MurlocRaider()] * 9 +
+        [Wisp()] * 2 +
+        [MurlocRaider()] * 7 +
         [BloodfenRaptor()] * 5 +
         [RiverCrocolisk()] * 5 +
         [MagmaRager()] * 4 +
