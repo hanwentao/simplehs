@@ -60,7 +60,7 @@ class Character(Object):
 
     def attack_(self, target):
         if not self.can_attack():
-            logging.error('Character [%s] cannot attack', self.name)
+            logging.warning('Character [%s] cannot attack', self.name)
             return
         logging.info('Character [%s] attacked character [%s]',
                      self.name, target.name)
@@ -443,7 +443,7 @@ class Match(object):
                 elif action[0] == 'concede':  # Concede
                     raise MatchResult(enemy, me)
                 else:
-                    logging.error('Invalid action: %s', action)
+                    logging.warning('Invalid action: %s', action)
         except MatchResult as match_result:
             winner = match_result.winner
             loser = match_result.loser
@@ -463,11 +463,11 @@ class Match(object):
     def play(self, me, enemy, card_index):
         card_index = int(card_index)
         if not (0 <= card_index < len(me.hand)):
-            logging.error('Invalid card index: %d', card_index)
+            logging.warning('Invalid card index: %d', card_index)
             return
         card = me.hand[card_index]
         if not card.can_play():
-            logging.error('Cannot play card (%s)', card.name)
+            logging.warning('Cannot play card (%s)', card.name)
             return
         me.play(card)
 
@@ -477,7 +477,7 @@ class Match(object):
         else:
             attacker_index = int(attacker_index)
             if not (0 <= attacker_index < len(me.battlefield)):
-                logging.error('Invalid attacker index: %d', attacker_index)
+                logging.warning('Invalid attacker index: %d', attacker_index)
                 return
             attacker = me.battlefield[attacker_index]
         if attackee_index == 'H' or attackee_index == 'h':
@@ -485,7 +485,7 @@ class Match(object):
         else:
             attackee_index = int(attackee_index)
             if not (0 <= attackee_index < len(enemy.battlefield)):
-                logging.error('Invalid attackee index: %d', attackee_index)
+                logging.warning('Invalid attackee index: %d', attackee_index)
                 return
             attackee = enemy.battlefield[attackee_index]
         attacker.attack_(attackee)
