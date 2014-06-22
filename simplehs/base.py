@@ -387,9 +387,10 @@ class MatchResult(Exception):
 class Match(object):
     """A match"""
 
-    def __init__(self, client1, client2, seed=None):
+    def __init__(self, client1, client2, seed=None, display=False):
         self._clients = [client1, client2]
         self._random = random.Random(seed)
+        self._display = display
 
     @property
     def random(self):
@@ -423,8 +424,9 @@ class Match(object):
             enemy = self._players[1]
             self.new_turn(me)
             while True:
-                print enemy
-                print me
+                if self._display:
+                    print enemy
+                    print me
                 action = me.client.decide(me, enemy)  # TODO: Add events
                 if action[0] == 'play':  # Play a card
                     card_index = action[1]

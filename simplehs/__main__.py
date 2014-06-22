@@ -13,12 +13,14 @@ from cards import *
 from clients import *
 from heroes import *
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 def main(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         description='Simulate a Hearthstone match.')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='be verbose (debug information)')
+    parser.add_argument('-d', '--display', action='store_true',
+                        help='display the board every time')
     parser.add_argument('-n', '--matches', type=int, default=1,
                         help='number of matches to play')
     parser.add_argument('-s', '--seed', type=int, default=1,
@@ -36,6 +38,10 @@ def main(args=sys.argv[1:]):
     parser.add_argument('--hero2', default='InnKeeper',
                         help='hero class of player 2')
     args = parser.parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
     num_matches = args.matches
     seed = args.seed
     client1_class = globals()[args.client1]
@@ -61,7 +67,7 @@ def main(args=sys.argv[1:]):
     max_num_turns = 0
     for match_num in xrange(num_matches):
         match_seed = random.random()
-        match = Match(client1, client2, match_seed)
+        match = Match(client1, client2, match_seed, display=args.display)
         winner, first, num_turns = match.run()
         result[winner] += 1
         result[first] += 1
