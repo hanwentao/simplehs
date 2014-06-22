@@ -1,15 +1,35 @@
 # Base classes
 
+import copy
 import logging
 import random
 
 
-class Character(object):
+class Object(object):
+    """An object"""
+
+    def __init__(self, name):
+        self._name = name
+        self._owner = None
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def owner(self):
+        return self._owner
+
+    @owner.setter
+    def owner(self, value):
+        self._owner = value
+
+
+class Character(Object):
     """A character"""
 
     def __init__(self, name, attack, health):
-        self._owner = None
-        self._name = name
+        Object.__init__(self, name)
         self._base_attack = attack
         self._base_health = health
         self._sleeping = False
@@ -23,18 +43,6 @@ class Character(object):
         return str(self)
 
     @property
-    def owner(self):
-        return self._owner
-
-    @owner.setter
-    def owner(self, value):
-        self._owner = value
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
     def attack(self):
         return self._base_attack
 
@@ -42,7 +50,6 @@ class Character(object):
     def health(self):
         return self._base_health
 
-    @property
     def can_attack(self):
         return (self.attack > 0 and not self._sleeping and
                 self._num_attacks_done < self._num_attacks_allowed)
@@ -52,7 +59,7 @@ class Character(object):
         self._num_attacks_done = 0
 
     def attack_(self, target):
-        if not self.can_attack:
+        if not self.can_attack():
             logging.error('Character [%s] cannot attack', self.name)
             return
         logging.info('Character [%s] attacked character [%s]',
@@ -96,15 +103,15 @@ class Minion(Character):
         self._owner.battlefield.remove(self)
 
 
-class Weapon(object):
+class Weapon(Object):
     pass
 
 
-class Card(object):
+class Card(Object):
     """A card"""
 
     def __init__(self, name, cost):
-        self._name = name
+        Object.__init__(self, name)
         self._cost = cost
 
     def __str__(self):
@@ -114,12 +121,19 @@ class Card(object):
         return str(self)
 
     @property
-    def name(self):
-        return self._name
-
-    @property
     def cost(self):
         return self._cost
+
+    def can_play(self):
+        enough_mana = self.cost <= self.owner.mana
+        if not enough_mana:
+            logging.debug('Not enough mana for card (%s): %d > %d',
+                          self.name, self.cost, self.owner.mana)
+        return enough_mana
+
+    def play(self):
+        logging.info('Player <%s> played a card (%s)',
+                     self.owner.name, self.name)
 
 
 class MinionCard(Card):
@@ -130,6 +144,13 @@ class MinionCard(Card):
         self._attack = attack
         self._health = health
 
+    def can_play(self):
+        enough_mana = Card.can_play(self)
+        has_room = len(self.owner.battlefield) < 7
+        if not has_room:
+            logging.debug('No room for minion')
+        return enough_mana and has_room
+
     @property
     def attack(self):
         return self._attack
@@ -138,12 +159,24 @@ class MinionCard(Card):
     def health(self):
         return self._health
 
-    def summon_minion(self):
+    def summon(self):
         return Minion(self.name, self.attack, self.health)
+
+    def play(self):
+        Card.play(self)
+        minion = self.summon()
+        self.owner._mana -= self.cost
+        self.owner.battlefield.append(minion)
+        minion.owner = self.owner
+        logging.info('Player <%s> summoned a minion [%s]',
+                     self.owner.name, minion.name)
 
 
 class SpellCard(Card):
-    pass
+    """A spell card"""
+
+    def __init__(self, name, cost):
+        Card.__init__(self, name, cost)
 
 
 class WeaponCard(Card):
@@ -161,7 +194,9 @@ class Player(object):
         self._first = None
         self._hero = client.hero_class()
         self._hero.owner = self
-        self._deck = Deck(client.deck)
+        self._deck = Deck(copy.deepcopy(client.deck))
+        for card in self.deck:
+            card.owner = self
         self._hand = Hand()
         self._battlefield = Battlefield()
         self._full_mana = 0
@@ -238,7 +273,6 @@ class Player(object):
     def draw(self, num_cards=1):
         """Draw some cards."""
         for card_num in xrange(num_cards):
-            # TODO: Check for fatigue
             success, card_or_fatigue = self.deck.draw()
             if success:
                 card = card_or_fatigue
@@ -257,6 +291,11 @@ class Player(object):
         cards = self.hand.remove_(card_index_list)
         self.draw(len(card_index_list))
         self.deck.put_back(cards, self.match.random)
+
+    def play(self, card):
+        """Play a card."""
+        self.hand.remove(card)
+        card.play()
 
 
 class Deck(list):
@@ -421,16 +460,10 @@ class Match(object):
             logging.error('Invalid card index: %d', card_index)
             return
         card = me.hand[card_index]
-        if card.cost > me.mana:
-            logging.error('Not enough mana: %d < %d', me.mana, card.cost)
+        if not card.can_play():
+            logging.error('Cannot play card (%s)', card.name)
             return
-        me.hand.pop(card_index)
-        minion = card.summon_minion()
-        me._mana -= card.cost
-        me.battlefield.append(minion)
-        minion.owner = me
-        logging.info('Player <%s> played a card (%s) to summon a minion [%s]',
-                     me.name, card.name, minion.name)
+        me.play(card)
 
     def attack(self, me, enemy, attacker_index, attackee_index):
         if attacker_index == 'H' or attacker_index == 'h':
