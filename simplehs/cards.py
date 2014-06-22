@@ -71,3 +71,17 @@ class WarGolem(MinionCard):
 
     def __init__(self):
         MinionCard.__init__(self, 'War Golem', 7, 7, 7)
+
+# Special
+
+# 0 mana
+
+class TheCoin(SpellCard):
+    """The Coin"""
+
+    def __init__(self):
+        SpellCard.__init__(self, 'The Coin', 0)
+
+    def play(self):
+        SpellCard.play(self)
+        self.owner._mana += 1

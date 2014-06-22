@@ -414,7 +414,11 @@ class Match(object):
             player2.draw(4)
             player1.replace()
             player2.replace()
-            # TODO: Add The Coin
+            coin = TheCoin()
+            coin.owner = player2
+            player2.hand.append(coin)
+            logging.info('Player <%s> obtained a card (%s)',
+                         player2.name, coin.name)
             me = self._players[0]
             enemy = self._players[1]
             self.new_turn(me)
@@ -483,3 +487,6 @@ class Match(object):
                 return
             attackee = enemy.battlefield[attackee_index]
         attacker.attack_(attackee)
+
+
+from cards import TheCoin  # XXX: Import at the end to work around circular
