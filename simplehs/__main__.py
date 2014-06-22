@@ -3,7 +3,9 @@
 
 import argparse
 import logging
+import random
 import sys
+from collections import defaultdict
 
 from base import Deck
 from base import Match
@@ -17,6 +19,8 @@ logging.basicConfig(level=logging.DEBUG)
 def main(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(
         description='Simulate a Hearthstone match.')
+    parser.add_argument('-n', '--matches', type=int, default=1,
+                        help='number of matches to play')
     parser.add_argument('-s', '--seed', type=int, default=1,
                         help='random seed')
     parser.add_argument('--client1', default='DummyClient',
@@ -32,6 +36,7 @@ def main(args=sys.argv[1:]):
     parser.add_argument('--hero2', default='InnKeeper',
                         help='hero class of player 2')
     args = parser.parse_args()
+    num_matches = args.matches
     seed = args.seed
     client1_class = globals()[args.client1]
     client2_class = globals()[args.client2]
@@ -51,8 +56,16 @@ def main(args=sys.argv[1:]):
         [])
     client1 = client1_class(name1, hero1_class, deck)
     client2 = client2_class(name2, hero2_class, deck)
-    match = Match(client1, client2, seed)
-    match.run()
+    result = defaultdict(int)
+    random.seed(seed)
+    max_num_turns = 0
+    for match_num in xrange(num_matches):
+        match_seed = random.random()
+        match = Match(client1, client2, match_seed)
+        winner, num_turns = match.run()
+        result[winner] += 1
+        max_num_turns = max(max_num_turns, num_turns)
+    print result, max_num_turns
 
 
 if __name__ == '__main__':

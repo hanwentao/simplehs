@@ -295,6 +295,12 @@ class Client(object):
         self._hero_class = hero_class
         self._deck = deck
 
+    def __str__(self):
+        return self._name
+
+    def __repr__(self):
+        return str(self)
+
     @property
     def name(self):
         return self._name
@@ -347,6 +353,8 @@ class Match(object):
         player2 = Player(self, self._clients[1])
         player1.opponent = player2
         player2.opponent = player1
+        if self.random.random() >= 0.5:
+            player1, player2 = player2, player1
         self._players = [player1, player2]
         player1.deck.shuffle(self._random)
         player2.deck.shuffle(self._random)
@@ -386,6 +394,7 @@ class Match(object):
         except:
             raise
         logging.info('Player <%s> won', winner.name)
+        return (winner.client, self._turn_num)
 
     def new_turn(self, me):
         self._turn_num += 1
