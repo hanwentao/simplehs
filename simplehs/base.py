@@ -29,7 +29,7 @@ class Character(Object):
     """A character"""
 
     def __init__(self, name, attack, health):
-        Object.__init__(self, name)
+        super(Character, self).__init__(name)
         self._base_attack = attack
         self._base_health = health
         self._sleeping = False
@@ -84,10 +84,10 @@ class Hero(Character):
     """A hero"""
 
     def __init__(self, name, health):
-        Character.__init__(self, name, 0, health)
+        super(Hero, self).__init__(name, 0, health)
 
     def die(self):
-        Character.die(self)
+        super(Hero, self).die()
         raise MatchResult(self.owner.opponent, self.owner)
 
 
@@ -95,11 +95,11 @@ class Minion(Character):
     """A minion"""
 
     def __init__(self, name, attack, health):
-        Character.__init__(self, name, attack, health)
+        super(Minion, self).__init__(name, attack, health)
         self._sleeping = True
 
     def die(self):
-        Character.die(self)
+        super(Minion, self).die()
         self._owner.battlefield.remove(self)
 
 
@@ -111,7 +111,7 @@ class Card(Object):
     """A card"""
 
     def __init__(self, name, cost):
-        Object.__init__(self, name)
+        super(Card, self).__init__(name)
         self._cost = cost
 
     def __str__(self):
@@ -140,7 +140,7 @@ class MinionCard(Card):
     """A minion card"""
 
     def __init__(self, name, cost, attack, health):
-        Card.__init__(self, name, cost)
+        super(MinionCard, self).__init__(name, cost)
         self._attack = attack
         self._health = health
 
@@ -163,7 +163,7 @@ class MinionCard(Card):
         return Minion(self.name, self.attack, self.health)
 
     def play(self):
-        Card.play(self)
+        super(MinionCard, self).play()
         minion = self.summon()
         self.owner._mana -= self.cost
         self.owner.battlefield.append(minion)
@@ -176,7 +176,7 @@ class SpellCard(Card):
     """A spell card"""
 
     def __init__(self, name, cost):
-        Card.__init__(self, name, cost)
+        super(SpellCard, self).__init__(name, cost)
 
 
 class WeaponCard(Card):
@@ -302,7 +302,7 @@ class Deck(list):
     """A deck of cards"""
 
     def __init__(self, *args, **kwargs):
-        list.__init__(self, *args, **kwargs)
+        super(Deck, self).__init__(*args, **kwargs)
         self._fatigue = 0
 
     def shuffle(self, random):
