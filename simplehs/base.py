@@ -50,6 +50,7 @@ class Character(Object):
     def health(self):
         return self._base_health
 
+    @property
     def can_attack(self):
         return (self.attack > 0 and not self._sleeping and
                 self._num_attacks_done < self._num_attacks_allowed)
@@ -59,7 +60,7 @@ class Character(Object):
         self._num_attacks_done = 0
 
     def attack_(self, target):
-        if not self.can_attack():
+        if not self.can_attack:
             logging.warning('Character [%s] cannot attack', self.name)
             return
         logging.info('Character [%s] attacked character [%s]',
@@ -124,6 +125,7 @@ class Card(Object):
     def cost(self):
         return self._cost
 
+    @property
     def can_play(self):
         enough_mana = self.cost <= self.owner.mana
         if not enough_mana:
@@ -144,8 +146,9 @@ class MinionCard(Card):
         self._attack = attack
         self._health = health
 
+    @property
     def can_play(self):
-        enough_mana = Card.can_play(self)
+        enough_mana = super(MinionCard, self).can_play
         has_room = len(self.owner.battlefield) < 7
         if not has_room:
             logging.debug('No room for minion')
@@ -483,7 +486,7 @@ class Match(object):
             logging.warning('Invalid card index: %d', card_index)
             return
         card = me.hand[card_index]
-        if not card.can_play():
+        if not card.can_play:
             logging.warning('Cannot play card (%s)', card.name)
             return
         me.play(card)

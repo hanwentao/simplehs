@@ -15,10 +15,10 @@ class NaiveClient(Client):
 
     def decide(self, me, enemy):
         for card_index, card in enumerate(me.hand):
-            if card.can_play():
+            if card.can_play:
                 return ('play', str(card_index))
         for minion_index, minion in enumerate(me.battlefield):
-            if minion.can_attack():
+            if minion.can_attack:
                 return ('attack', str(minion_index), 'h')
         return ('end', )
 
