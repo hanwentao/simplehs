@@ -52,6 +52,8 @@ def main(args=sys.argv[1:]):
     config = Configuration()
     if args.no_coin:
         config.coin = False
+    if args.display:
+        config.display = True
     num_matches = args.matches
     seed = args.seed
     client1_class = globals()[args.client1]
@@ -78,8 +80,8 @@ def main(args=sys.argv[1:]):
     max_num_turns = 0
     for match_num in xrange(num_matches):
         match_seed = random.random()
-        match = Match(client1, client2, match_seed, display=args.display,
-                      config=config)
+        config.seed = match_seed
+        match = Match(client1, client2, config)
         winner, first, num_turns = match.run()
         result[winner] += 1
         result[first] += 1

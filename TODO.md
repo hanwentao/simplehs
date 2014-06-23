@@ -19,7 +19,6 @@ TODO List
 ## Extra Part
 
 * Refactoring
-  * Super method
-  * Property vs. function and variable
   * str & repr
 * Configuration
+  * More general

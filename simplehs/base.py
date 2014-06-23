@@ -378,12 +378,28 @@ class Configuration(object):
         self._config = {}
 
     @property
+    def seed(self):
+        return self._config.get('seed', 0)
+
+    @seed.setter
+    def seed(self, value):
+        self._config['seed'] = value
+
+    @property
     def coin(self):
         return self._config.get('coin', True)
 
     @coin.setter
     def coin(self, value):
         self._config['coin'] = value
+
+    @property
+    def display(self):
+        return self._config.get('display', False)
+
+    @display.setter
+    def display(self, value):
+        self._config['display'] = value
 
 
 class MatchResult(Exception):
@@ -405,11 +421,10 @@ class MatchResult(Exception):
 class Match(object):
     """A match"""
 
-    def __init__(self, client1, client2, seed=None, display=False, config=None):
-        self._clients = [client1, client2]
-        self._random = random.Random(seed)
-        self._display = display
+    def __init__(self, client1, client2, config=None):
         self._config = config if config is not None else Configuration()
+        self._clients = [client1, client2]
+        self._random = random.Random(config.seed)
 
     @property
     def random(self):
@@ -444,7 +459,7 @@ class Match(object):
             enemy = self._players[1]
             self.new_turn(me)
             while True:
-                if self._display:
+                if self._config.display:
                     print enemy
                     print me
                 action = me.client.decide(me, enemy)  # TODO: Add events
