@@ -1,6 +1,6 @@
 # Base classes
 
-import copy
+import importlib
 import logging
 import random
 
@@ -8,13 +8,22 @@ import random
 class Object(object):
     """An object"""
 
-    def __init__(self, name):
+    def __init__(self, root, id, owner, name):
+        self._root = root
+        self._id = id
+        self._owner = owner
         self._name = name
-        self._owner = None
+
+    def __hash__(self):
+        return self._id
 
     @property
-    def name(self):
-        return self._name
+    def root(self):
+        return self._root
+
+    @property
+    def id(self):
+        return self._id
 
     @property
     def owner(self):
@@ -24,12 +33,16 @@ class Object(object):
     def owner(self, value):
         self._owner = value
 
+    @property
+    def name(self):
+        return self._name
+
 
 class Character(Object):
     """A character"""
 
-    def __init__(self, name, attack, health):
-        super(Character, self).__init__(name)
+    def __init__(self, root, id, owner, name, attack, health):
+        super(Character, self).__init__(root, id, owner, name)
         self._base_attack = attack
         self._base_health = health
         self._sleeping = False
@@ -84,24 +97,25 @@ class Character(Object):
 class Hero(Character):
     """A hero"""
 
-    def __init__(self, name, health):
-        super(Hero, self).__init__(name, 0, health)
+    def __init__(self, root, id, owner, name, health):
+        super(Hero, self).__init__(root, id, owner, name, 0, health)
 
     def die(self):
         super(Hero, self).die()
-        raise MatchResult(self.owner.opponent, self.owner)
+        raise MatchResult(self.owner.opponent)
 
 
 class Minion(Character):
     """A minion"""
 
-    def __init__(self, name, attack, health):
-        super(Minion, self).__init__(name, attack, health)
+    def __init__(self, root, id, owner, name, attack, health):
+        super(Minion, self).__init__(root, id, owner, name, attack, health)
         self._sleeping = True
 
     def die(self):
         super(Minion, self).die()
-        self._owner.battlefield.remove(self)
+        self.owner.battlefield.remove(self)
+        self.root.remove(self)
 
 
 class Weapon(Object):
@@ -111,8 +125,8 @@ class Weapon(Object):
 class Card(Object):
     """A card"""
 
-    def __init__(self, name, cost):
-        super(Card, self).__init__(name)
+    def __init__(self, root, id, owner, name, cost):
+        super(Card, self).__init__(root, id, owner, name)
         self._cost = cost
 
     def __str__(self):
@@ -141,8 +155,8 @@ class Card(Object):
 class MinionCard(Card):
     """A minion card"""
 
-    def __init__(self, name, cost, attack, health):
-        super(MinionCard, self).__init__(name, cost)
+    def __init__(self, root, id, owner, name, cost, attack, health):
+        super(MinionCard, self).__init__(root, id, owner, name, cost)
         self._attack = attack
         self._health = health
 
@@ -162,15 +176,12 @@ class MinionCard(Card):
     def health(self):
         return self._health
 
-    def summon(self):
-        return Minion(self.name, self.attack, self.health)
-
     def play(self):
         super(MinionCard, self).play()
-        minion = self.summon()
+        minion = self.root.create(Minion, self.owner,
+                                  self.name, self.attack, self.health)
         self.owner._mana -= self.cost
         self.owner.battlefield.append(minion)
-        minion.owner = self.owner
         logging.info('Player <%s> summoned a minion [%s]',
                      self.owner.name, minion.name)
 
@@ -178,28 +189,30 @@ class MinionCard(Card):
 class SpellCard(Card):
     """A spell card"""
 
-    def __init__(self, name, cost):
-        super(SpellCard, self).__init__(name, cost)
+    def __init__(self, root, id, owner, name, cost):
+        super(SpellCard, self).__init__(root, id, owner, name, cost)
 
 
 class WeaponCard(Card):
     pass
 
 
-class Player(object):
+class Player(Object):
     """A player"""
 
-    def __init__(self, match, client):
-        self._match = match
+    def __init__(self, root, id, owner, client, first):
+        super(Player, self).__init__(root, id, owner, client.name)
         self._client = client
         self._opponent = None
-        self._name = client.name
-        self._first = None
-        self._hero = client.hero_class()
-        self._hero.owner = self
-        self._deck = Deck(copy.deepcopy(client.deck))
-        for card in self.deck:
-            card.owner = self
+        self._first = first
+        self._hero = root.create(client.hero_class, self)
+        self._deck = Deck()
+        module_cards = importlib.import_module('simplehs.cards')
+        for card_name in client.deck:
+            card_class = getattr(module_cards, card_name)
+            card = root.create(card_class, self)
+            self._deck.append(card)
+        self._deck.shuffle(root.random)
         self._hand = Hand()
         self._battlefield = Battlefield()
         self._full_mana = 0
@@ -216,10 +229,6 @@ class Player(object):
                    ))
 
     @property
-    def match(self):
-        return self._match
-
-    @property
     def client(self):
         return self._client
 
@@ -232,16 +241,8 @@ class Player(object):
         self._opponent = value
 
     @property
-    def name(self):
-        return self._name
-
-    @property
     def first(self):
         return self._first
-
-    @first.setter
-    def first(self, value):
-        self._first = value
 
     @property
     def hero(self):
@@ -293,7 +294,7 @@ class Player(object):
         card_index_list = self.client.replace(self)[1]
         cards = self.hand.remove_(card_index_list)
         self.draw(len(card_index_list))
-        self.deck.put_back(cards, self.match.random)
+        self.deck.put_back(cards, self.root.random)
 
     def play(self, card):
         """Play a card."""
@@ -364,10 +365,10 @@ class Client(object):
     def deck(self):
         return self._deck
 
-    def replace(self, me):
+    def replace(self, player):
         return ('replace', [])
 
-    def decide(self, me, enemy):
+    def decide(self, player):
         return ('end', )
 
 
@@ -405,17 +406,12 @@ class Configuration(object):
 class MatchResult(Exception):
     """Exception indicates the result of a match"""
 
-    def __init__(self, winner, loser):
+    def __init__(self, winner):
         self._winner = winner
-        self._loser = loser
 
     @property
     def winner(self):
         return self._winner
-
-    @property
-    def loser(self):
-        return self._loser
 
 
 class Match(object):
@@ -423,98 +419,108 @@ class Match(object):
 
     def __init__(self, client1, client2, config=None):
         self._config = config if config is not None else Configuration()
-        self._clients = [client1, client2]
+        self._client1 = client1
+        self._client2 = client2
         self._random = random.Random(config.seed)
+        self._objects = set()
 
     @property
     def random(self):
         return self._random
 
+    def next_id(self):
+        return len(self._objects)
+
+    def create(self, class_, owner, *args, **kwargs):
+        """Create an object, e.g., Card, Hero, Minion, Weapon, etc."""
+        id = self.next_id()
+        object = class_(self, id, owner, *args, **kwargs)
+        self._objects.add(object)
+        return object
+
+    def remove(self, object):
+        self._objects.remove(object)
+
     def run(self):
         self._turn_num = 0
-        player1 = Player(self, self._clients[0])
-        player2 = Player(self, self._clients[1])
+        client1_is_first = self.random.randint(0, 1) == 0
+        client2_is_first = not client1_is_first
+        player1 = self.create(Player, None, self._client1, client1_is_first)
+        player2 = self.create(Player, None, self._client2, client2_is_first)
         player1.opponent = player2
         player2.opponent = player1
-        if self.random.random() >= 0.5:
+        if client2_is_first:
             player1, player2 = player2, player1
-        player1.first = True
-        player2.first = False
-        self._players = [player1, player2]
-        player1.deck.shuffle(self._random)
-        player2.deck.shuffle(self._random)
-
         try:
             player1.draw(3)
             player2.draw(4)
             player1.replace()
             player2.replace()
             if self._config.coin:
-                coin = TheCoin()
-                coin.owner = player2
+                from cards import TheCoin
+                coin = self.create(TheCoin, player2)
                 player2.hand.append(coin)
                 logging.info('Player <%s> obtained a card (%s)',
                              player2.name, coin.name)
-            me = self._players[0]
-            enemy = self._players[1]
-            self.new_turn(me)
+            player = player1
+            self.new_turn(player)
             while True:
                 if self._config.display:
-                    print enemy
-                    print me
-                action = me.client.decide(me, enemy)  # TODO: Add events
+                    print player.opponent
+                    print player
+                action = player.client.decide(player)  # TODO: Add events
                 if action[0] == 'play':  # Play a card
                     card_index = action[1]
-                    self.play(me, enemy, card_index)
+                    self.play(player, card_index)
                 elif action[0] == 'attack':  # Order a minion to attack
                     attacker_index = action[1]
                     attackee_index = action[2]
-                    self.attack(me, enemy, attacker_index, attackee_index)
+                    self.attack(player, attacker_index, attackee_index)
                 elif action[0] == 'end':  # End this turn
                     # TODO: end of turn
-                    me, enemy = enemy, me
-                    self.new_turn(me)
+                    player = player.opponent
+                    self.new_turn(player)
                     # TODO: begin of turn
                 elif action[0] == 'concede':  # Concede
-                    raise MatchResult(enemy, me)
+                    raise MatchResult(player.opponent)
                 else:
                     logging.warning('Invalid action: %s', action)
         except MatchResult as match_result:
             winner = match_result.winner
-            loser = match_result.loser
         except:
             raise
         logging.info('Player <%s> won', winner.name)
         return (winner.client, winner.first, self._turn_num)
 
-    def new_turn(self, me):
+    def new_turn(self, player):
         self._turn_num += 1
         logging.info('Turn #%d began', self._turn_num)
-        me.regenerate()
-        me.draw()
-        for minion in me.battlefield:
+        player.regenerate()
+        player.draw()
+        for minion in player.battlefield:
             minion.reset_attack_status()
 
-    def play(self, me, enemy, card_index):
+    def play(self, player, card_index):
         card_index = int(card_index)
-        if not (0 <= card_index < len(me.hand)):
+        if not (0 <= card_index < len(player.hand)):
             logging.warning('Invalid card index: %d', card_index)
             return
-        card = me.hand[card_index]
+        card = player.hand[card_index]
         if not card.can_play:
             logging.warning('Cannot play card (%s)', card.name)
             return
-        me.play(card)
+        player.play(card)
 
-    def attack(self, me, enemy, attacker_index, attackee_index):
+    def attack(self, player, attacker_index, attackee_index):
         if attacker_index == 'H' or attacker_index == 'h':
-            attacker = me.hero
+            attacker = player.hero
         else:
             attacker_index = int(attacker_index)
-            if not (0 <= attacker_index < len(me.battlefield)):
+            if not (0 <= attacker_index < len(player.battlefield)):
                 logging.warning('Invalid attacker index: %d', attacker_index)
                 return
-            attacker = me.battlefield[attacker_index]
+            attacker = player.battlefield[attacker_index]
+        enemy = player.opponent
         if attackee_index == 'H' or attackee_index == 'h':
             attackee = enemy.hero
         else:
@@ -524,6 +530,3 @@ class Match(object):
                 return
             attackee = enemy.battlefield[attackee_index]
         attacker.attack_(attackee)
-
-
-from cards import TheCoin  # XXX: Import at the end to work around circular

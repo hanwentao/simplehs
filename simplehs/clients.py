@@ -13,11 +13,11 @@ class DummyClient(Client):
 class NaiveClient(Client):
     """A naive client"""
 
-    def decide(self, me, enemy):
-        for card_index, card in enumerate(me.hand):
+    def decide(self, player):
+        for card_index, card in enumerate(player.hand):
             if card.can_play:
                 return ('play', str(card_index))
-        for minion_index, minion in enumerate(me.battlefield):
+        for minion_index, minion in enumerate(player.battlefield):
             if minion.can_attack:
                 return ('attack', str(minion_index), 'h')
         return ('end', )
@@ -26,14 +26,14 @@ class NaiveClient(Client):
 class ConsoleClient(Client):
     """A console client"""
 
-    def replace(self, me):
+    def replace(self, player):
         line = raw_input('Which cards to replace: ')
         tokens = line.split()
         index_list = [int(token) for token in tokens]
         action = ('replace', index_list)
         return action
 
-    def decide(self, me, enemy):
+    def decide(self, player):
         while True:
             line = raw_input('Enter an action: ')
             tokens = line.split()

@@ -19,6 +19,7 @@ TODO List
 ## Extra Part
 
 * Refactoring
+  * Object hierarchy
   * str & repr
 * Configuration
   * More general
