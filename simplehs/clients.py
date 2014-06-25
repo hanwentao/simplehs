@@ -23,6 +23,23 @@ class NaiveClient(Client):
         return ('end', )
 
 
+class ClearClient(Client):
+    """A naive client"""
+
+    def decide(self, player):
+        for card_index, card in enumerate(player.hand):
+            if card.can_play:
+                return ('play', str(card_index))
+        enemy = player.opponent
+        for minion_index, minion in enumerate(player.battlefield):
+            if minion.can_attack:
+                if len(enemy.battlefield) > 0:
+                    return ('attack', str(minion_index), '0')
+                else:
+                    return ('attack', str(minion_index), 'h')
+        return ('end', )
+
+
 class ConsoleClient(Client):
     """A console client"""
 
