@@ -46,17 +46,27 @@ def make_card(base_class, name, cost, *args, **kwargs):
     card_class = namespace[class_name]
     return card_class
 
-# Neutral
+# Vanilla
 
-Wisp = make_card(MinionCard, 'Wisp', 0, 1, 1)
-MurlocRaider = make_card(MinionCard, 'Murloc Raider', 1, 2, 1)
-BloodfenRaptor = make_card(MinionCard, 'Bloodfen Raptor', 2, 3, 2)
-RiverCrocolisk = make_card(MinionCard, 'River Crocolisk', 2, 2, 3)
-MagmaRager = make_card(MinionCard, 'Magma Rager', 3, 5, 1)
-ChillwindYeti = make_card(MinionCard, 'Chillwind Yeti', 4, 4, 5)
-BoulderfistOgre = make_card(MinionCard, 'Boulderfist Ogre', 6, 6, 7)
-CoreHound = make_card(MinionCard, 'Core Hound', 7, 9, 5)
-WarGolem = make_card(MinionCard, 'War Golem', 7, 7, 7)
+Wisp = make_card(MinionCard, "Wisp", 0, 1, 1)
+MurlocRaider = make_card(MinionCard, "Murloc Raider", 1, 2, 1)
+BloodfenRaptor = make_card(MinionCard, "Bloodfen Raptor", 2, 3, 2)
+RiverCrocolisk = make_card(MinionCard, "River Crocolisk", 2, 2, 3)
+MagmaRager = make_card(MinionCard, "Magma Rager", 3, 5, 1)
+ChillwindYeti = make_card(MinionCard, "Chillwind Yeti", 4, 4, 5)
+BoulderfistOgre = make_card(MinionCard, "Boulderfist Ogre", 6, 6, 7)
+CoreHound = make_card(MinionCard, "Core Hound", 7, 9, 5)
+WarGolem = make_card(MinionCard, "War Golem", 7, 7, 7)
+
+# Charge
+
+StonetuskBoar = make_card(MinionCard, "Stonetusk Boar", 1, 1, 1, charge=True)
+BluegillWarrior = make_card(MinionCard, "Bluegill Warrior", 2, 2, 1, charge=True)
+Wolfrider = make_card(MinionCard, "Wolfrider", 3, 3, 1, charge=True)
+KorKronElite = make_card(MinionCard, "Kor'kron Elite", 4, 4, 3, charge=True)
+StormwindKnight = make_card(MinionCard, "Stormwind Knight", 4, 2, 5, charge=True)
+RecklessRocketeer = make_card(MinionCard, "Reckless Rocketeer", 6, 5, 2, charge=True)
+KingKrush = make_card(MinionCard, "King Krush", 9, 8, 8, charge=True)
 
 # Special
 

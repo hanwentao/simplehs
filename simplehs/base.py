@@ -148,11 +148,22 @@ class Minion(Character):
     """A minion"""
 
     def __init__(self, root, id, owner, name, attack, health,
-                 battlecry=None, deathrattle=None):
+                 charge=False, battlecry=None, deathrattle=None):
         super(Minion, self).__init__(root, id, owner, name, attack, health)
+        self._sleeping = True
+        self.charge = charge
         self._battlecry = battlecry
         self._deathrattle = deathrattle
-        self._sleeping = True
+
+    @property
+    def charge(self):
+        return self._charge
+
+    @charge.setter
+    def charge(self, value):
+        self._charge = value
+        if value and self._sleeping:
+            self._sleeping = False
 
     def battlecry(self):
         if self._battlecry is not None:
