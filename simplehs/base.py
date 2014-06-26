@@ -1,8 +1,23 @@
 # Base classes
 
+import collections
 import importlib
+import inspect
 import logging
 import random
+
+
+class on(object):
+    """A decorator indicates an event handler"""
+
+    def __init__(self, event):
+        self._event = event
+
+    def __call__(self, handler):
+        def wrapped_handler(*args, **kwargs):
+            return handler(*args, **kwargs)
+        wrapped_handler._event = self._event
+        return wrapped_handler
 
 
 class Object(object):
@@ -13,6 +28,13 @@ class Object(object):
         self._id = id
         self._owner = owner
         self._name = name
+        self._handlers = collections.defaultdict(list)
+        members = inspect.getmembers(self, inspect.ismethod)
+        for name, member in members:
+            event = getattr(member, '_event', None)
+            if event is not None:
+                self._handlers[event].append(member)
+
 
     def __hash__(self):
         return self._id
@@ -36,6 +58,11 @@ class Object(object):
     @property
     def name(self):
         return self._name
+
+    def handle(self, event, *args, **kwargs):
+        handler_list = self._handlers[event]
+        for handler in handler_list:
+            handler(*args, **kwargs)
 
 
 class Character(Object):
@@ -68,6 +95,10 @@ class Character(Object):
         return (self.attack > 0 and not self._sleeping and
                 self._num_attacks_done < self._num_attacks_allowed)
 
+    @property
+    def dying(self):
+        return self.health <= 0
+
     def reset_attack_status(self):
         self._sleeping = False
         self._num_attacks_done = 0
@@ -76,21 +107,28 @@ class Character(Object):
         if not self.can_attack:
             logging.warning('Character [%s] cannot attack', self.name)
             return
-        logging.info('Character [%s] attacked character [%s]',
+        logging.info('Character [%s] is attacking character [%s]',
                      self.name, target.name)
         self._num_attacks_done += 1
-        target.take_damage(self.attack)
-        self.take_damage(target.attack)
+        self.root.trigger('attacking', self, target)
+        self.root.trigger('taken_damage', target, self.attack)
+        self.root.trigger('taken_damage', self, target.attack)
 
+    @on('taken_damage')
     def take_damage(self, damage):
         if damage <= 0:
             return
         logging.info('Character [%s] took %d damage', self.name, damage)
         self._base_health -= damage
-        if self._base_health <= 0:
-            self.die()
+        if self.dying:
+            self.root.trigger('dying', self)
 
+    @on('dying')
     def die(self):
+        self.root.trigger('destroying', self)
+
+    @on('destroying')
+    def destroy(self):
         logging.info('Character [%s] died', self.name)
 
 
@@ -100,22 +138,41 @@ class Hero(Character):
     def __init__(self, root, id, owner, name, health):
         super(Hero, self).__init__(root, id, owner, name, 0, health)
 
-    def die(self):
-        super(Hero, self).die()
+    @on('destroying')
+    def destroy(self):
+        super(Hero, self).destroy()
         raise MatchResult(self.owner.opponent)
 
 
 class Minion(Character):
     """A minion"""
 
-    def __init__(self, root, id, owner, name, attack, health):
+    def __init__(self, root, id, owner, name, attack, health,
+                 battlecry=None, deathrattle=None):
         super(Minion, self).__init__(root, id, owner, name, attack, health)
+        self._battlecry = battlecry
+        self._deathrattle = deathrattle
         self._sleeping = True
 
+    def battlecry(self):
+        if self._battlecry is not None:
+            self._battlecry(self)
+
+    def deathrattle(self):
+        if self._deathrattle is not None:
+            self._deathrattle(self)
+
+    @on('dying')
     def die(self):
+        if self.deathrattle is not None:
+            self.deathrattle()
         super(Minion, self).die()
+
+    @on('destroying')
+    def destroy(self):
         self.owner.battlefield.remove(self)
         self.root.remove(self)
+        super(Minion, self).destroy()
 
 
 class Weapon(Object):
@@ -184,6 +241,8 @@ class MinionCard(Card):
         self.owner.battlefield.append(minion)
         logging.info('Player <%s> summoned a minion [%s]',
                      self.owner.name, minion.name)
+        if minion.battlecry is not None:
+            minion.battlecry()
 
 
 class SpellCard(Card):
@@ -423,13 +482,17 @@ class Match(object):
         self._client2 = client2
         self._random = random.Random(config.seed)
         self._objects = set()
+        self._next_id = 0
 
     @property
     def random(self):
         return self._random
 
     def next_id(self):
-        return len(self._objects)
+        # XXX: Concurrent issue?
+        new_id = self._next_id
+        self._next_id += 1
+        return new_id
 
     def create(self, class_, owner, *args, **kwargs):
         """Create an object, e.g., Card, Hero, Minion, Weapon, etc."""
@@ -440,6 +503,9 @@ class Match(object):
 
     def remove(self, object):
         self._objects.remove(object)
+
+    def trigger(self, event, object, *args, **kwargs):
+        object.handle(event, *args, **kwargs)
 
     def run(self):
         self._turn_num = 0
@@ -477,10 +543,9 @@ class Match(object):
                     attackee_index = action[2]
                     self.attack(player, attacker_index, attackee_index)
                 elif action[0] == 'end':  # End this turn
-                    # TODO: end of turn
+                    self.trigger('turn_end', player)
                     player = player.opponent
                     self.new_turn(player)
-                    # TODO: begin of turn
                 elif action[0] == 'concede':  # Concede
                     raise MatchResult(player.opponent)
                 else:
@@ -496,11 +561,12 @@ class Match(object):
         self._turn_num += 1
         logging.info('Turn #%d began', self._turn_num)
         player.regenerate()
-        player.draw()
         for minion in player.battlefield:
             minion.reset_attack_status()
+        self.trigger('turn_start', player)
+        player.draw()
 
-    def play(self, player, card_index):
+    def play(self, player, card_index, position=None, target=None):
         card_index = int(card_index)
         if not (0 <= card_index < len(player.hand)):
             logging.warning('Invalid card index: %d', card_index)
