@@ -13,7 +13,19 @@ class {class_name}({base_class_name}):
                                            {cost}, {attack}, {health})
 '''
 
-def _translate_name(name):
+def generate_class_name(name):
+    """Generate class name from a literate name.
+
+    >>> generate_class_name("Murloc Raider")
+    'MurlocRaider'
+    >>> generate_class_name("Kor'kron Elite")
+    'KorkronElite'
+    >>> generate_class_name("Al'Akir the Windlord")
+    'AlAkirTheWindlord'
+    >>> generate_class_name("Power Word: Shield")
+    'PowerWordShield'
+    """
+
     class_name = ''
     first = True
     for ch in name:
@@ -22,14 +34,14 @@ def _translate_name(name):
                 ch = ch.upper()
                 first = False
             class_name += ch
-        else:
+        elif ch.isspace():
             first = True
     return class_name
 
 def make_card(base_class, name, cost, *args, **kwargs):
     arguments = dict(name=name, cost=cost)
     arguments['base_class_name'] = base_class.__name__
-    class_name = _translate_name(name)
+    class_name = generate_class_name(name)
     arguments['class_name'] = class_name
     if base_class is MinionCard:
         arguments['attack'] = (kwargs['attack'] if 'attack' in kwargs
@@ -63,7 +75,7 @@ WarGolem = make_card(MinionCard, "War Golem", 7, 7, 7)
 StonetuskBoar = make_card(MinionCard, "Stonetusk Boar", 1, 1, 1, charge=True)
 BluegillWarrior = make_card(MinionCard, "Bluegill Warrior", 2, 2, 1, charge=True)
 Wolfrider = make_card(MinionCard, "Wolfrider", 3, 3, 1, charge=True)
-KorKronElite = make_card(MinionCard, "Kor'kron Elite", 4, 4, 3, charge=True)
+KorkronElite = make_card(MinionCard, "Kor'kron Elite", 4, 4, 3, charge=True)
 StormwindKnight = make_card(MinionCard, "Stormwind Knight", 4, 2, 5, charge=True)
 RecklessRocketeer = make_card(MinionCard, "Reckless Rocketeer", 6, 5, 2, charge=True)
 KingKrush = make_card(MinionCard, "King Krush", 9, 8, 8, charge=True)
@@ -79,3 +91,8 @@ class TheCoin(SpellCard):
     def play(self):
         SpellCard.play(self)
         self.owner._mana += 1
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
