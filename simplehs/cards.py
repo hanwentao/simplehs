@@ -9,8 +9,8 @@ class {class_name}({base_class_name}):
     """{name}"""
 
     def __init__(self, root, id, owner):
-        super({class_name}, self).__init__(root, id, owner, "{name}",
-                                           {cost}, {attack}, {health})
+        super({class_name}, self).__init__(root, id, owner, "{name}", {cost},
+                                           **{kwargs_repr})
 '''
 
 def generate_class_name(name):
@@ -43,11 +43,10 @@ def make_card(base_class, name, cost, *args, **kwargs):
     arguments['base_class_name'] = base_class.__name__
     class_name = generate_class_name(name)
     arguments['class_name'] = class_name
-    if base_class is MinionCard:
-        arguments['attack'] = (kwargs['attack'] if 'attack' in kwargs
-                                                else args[0])
-        arguments['health'] = (kwargs['health'] if 'health' in kwargs
-                                                else args[1])
+    if base_class is MinionCard and len(args) == 2:
+        kwargs['attack'] = args[0]
+        kwargs['health'] = args[1]
+    arguments['kwargs_repr'] = repr(kwargs)
     class_definition = _card_class_template.format(**arguments)
     namespace = dict(
         MinionCard=MinionCard,
@@ -79,6 +78,21 @@ KorkronElite = make_card(MinionCard, "Kor'kron Elite", 4, 4, 3, charge=True)
 StormwindKnight = make_card(MinionCard, "Stormwind Knight", 4, 2, 5, charge=True)
 RecklessRocketeer = make_card(MinionCard, "Reckless Rocketeer", 6, 5, 2, charge=True)
 KingKrush = make_card(MinionCard, "King Krush", 9, 8, 8, charge=True)
+
+# Taunt
+
+GoldshireFootman = make_card(MinionCard, "Goldshire Footman", 1, 1, 2, taunt=True)
+Shieldbearer = make_card(MinionCard, "Shieldbearer", 1, 0, 4, taunt=True)
+Voidwalker = make_card(MinionCard, "Voidwalker", 1, 1, 3, taunt=True)
+FrostwolfGrunt = make_card(MinionCard, "Frostwolf Grunt", 2, 2, 2, taunt=True)
+IronfurGrizzly = make_card(MinionCard, "Ironfur Grizzly", 3, 3, 3, taunt=True)
+SilverbackPatriarch = make_card(MinionCard, "Silverback Patriarch", 3, 1, 4, taunt=True)
+MogushanWarden = make_card(MinionCard, "Mogu'shan Warden", 4, 1, 7, taunt=True)
+SenjinShieldmasta = make_card(MinionCard, "Sen'jin Shieldmasta", 4, 3, 5, taunt=True)
+BootyBayBodyguard = make_card(MinionCard, "Booty Bay Bodyguard", 5, 5, 4, taunt=True)
+FenCreeper = make_card(MinionCard, "Fen Creeper", 5, 3, 6, taunt=True)
+LordOfTheArena = make_card(MinionCard, "Lord of the Arena", 6, 6, 5, taunt=True)
+IronbarkProtector = make_card(MinionCard, "Ironbark Protector", 8, 8, 8, taunt=True)
 
 # Special
 

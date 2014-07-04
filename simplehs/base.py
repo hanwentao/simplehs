@@ -73,6 +73,8 @@ class Character(Object):
         self._base_attack = attack
         self._base_health = health
         self._sleeping = False
+        self._charge = False
+        self._taunt = False
         self._num_attacks_allowed = 1
         self._num_attacks_done = 0
 
@@ -99,6 +101,24 @@ class Character(Object):
     def dying(self):
         return self.health <= 0
 
+    @property
+    def charge(self):
+        return self._charge
+
+    @charge.setter
+    def charge(self, value):
+        self._charge = value
+        if value and self._sleeping:
+            self._sleeping = False
+
+    @property
+    def taunt(self):
+        return self._taunt
+
+    @taunt.setter
+    def taunt(self, value):
+        self._taunt = value
+
     def reset_attack_status(self):
         self._sleeping = False
         self._num_attacks_done = 0
@@ -106,6 +126,9 @@ class Character(Object):
     def attack_(self, target):
         if not self.can_attack:
             logging.warning('Character [%s] cannot attack', self.name)
+            return
+        if target.owner.taunt_minions and not target.taunt:
+            logging.warning('Cannot attack non-taunt characters')
             return
         logging.info('Character [%s] is attacking character [%s]',
                      self.name, target.name)
@@ -148,22 +171,13 @@ class Minion(Character):
     """A minion"""
 
     def __init__(self, root, id, owner, name, attack, health,
-                 charge=False, battlecry=None, deathrattle=None):
+                 charge=False, taunt=False, battlecry=None, deathrattle=None):
         super(Minion, self).__init__(root, id, owner, name, attack, health)
         self._sleeping = True
         self.charge = charge
+        self.taunt = taunt
         self._battlecry = battlecry
         self._deathrattle = deathrattle
-
-    @property
-    def charge(self):
-        return self._charge
-
-    @charge.setter
-    def charge(self, value):
-        self._charge = value
-        if value and self._sleeping:
-            self._sleeping = False
 
     def battlecry(self):
         if self._battlecry is not None:
@@ -223,10 +237,11 @@ class Card(Object):
 class MinionCard(Card):
     """A minion card"""
 
-    def __init__(self, root, id, owner, name, cost, attack, health):
+    def __init__(self, root, id, owner, name, cost, attack, health, **effects):
         super(MinionCard, self).__init__(root, id, owner, name, cost)
         self._attack = attack
         self._health = health
+        self._effects = effects
 
     @property
     def can_play(self):
@@ -244,10 +259,15 @@ class MinionCard(Card):
     def health(self):
         return self._health
 
+    @property
+    def effects(self):
+        return self._effects
+
     def play(self):
         super(MinionCard, self).play()
         minion = self.root.create(Minion, self.owner,
-                                  self.name, self.attack, self.health)
+                                  self.name, self.attack, self.health,
+                                  **self.effects)
         self.owner._mana -= self.cost
         self.owner.battlefield.append(minion)
         logging.info('Player <%s> summoned a minion [%s]',
@@ -337,6 +357,10 @@ class Player(Object):
     @property
     def mana(self):
         return self._mana
+
+    @property
+    def taunt_minions(self):
+        return [minion for minion in self.battlefield if minion.taunt]
 
     def regenerate(self):
         """Regenerate mana crystals."""

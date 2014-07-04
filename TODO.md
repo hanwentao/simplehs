@@ -6,12 +6,13 @@ TODO List
 * Mechanics
   * Charge
   * Taunt
-  * Shield
+  * Divine shield
   * Windfury
   * Stealth
   * Attack & health
   * More
 * Event processing
+* Test framework
 * Spells
 * Heroes
 * Weapons

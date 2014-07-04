@@ -63,15 +63,7 @@ def main(args=sys.argv[1:]):
     hero1_class = globals()[args.hero1]
     hero2_class = globals()[args.hero2]
     deck = (
-        ['Wisp'] * 2 +
-        ['MurlocRaider'] * 7 +
-        ['BloodfenRaptor'] * 5 +
-        ['RiverCrocolisk'] * 5 +
-        ['MagmaRager'] * 4 +
-        ['ChillwindYeti'] * 3 +
-        ['BoulderfistOgre'] * 2 +
-        ['CoreHound'] * 1 +
-        ['WarGolem'] * 1 +
+        ['SenjinShieldmasta'] * 30 +
         []
     )
     client1 = client1_class(name1, hero1_class, deck)
