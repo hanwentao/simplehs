@@ -13,12 +13,19 @@ Design Draft
     * SpellCard
       * SecretCard
     * WeaponCard
-  * Character
-    * Hero
-    * Minion
-  * Weapon
-  * Secret
-  * HeroPower
+  * Entity
+    * Character
+      * Hero
+      * Minion
+    * Weapon
+    * Secret
+  * Spell
+    * HeroPower
+* Attribute
+* Ability
+* Deck
+* Hand
+* Battlefield
 
 ### Properties and Methods
 
@@ -26,8 +33,8 @@ Design Draft
   * turn_num
   * players
   * who (current player)
-  + duplicate(source)
-  + transform(source, target)
+  + run()
+  + create(class_, **kwargs)
 * Player
   * name
   * opponent
@@ -38,6 +45,7 @@ Design Draft
   * hero
   * battlefield
   * secrets
+  + replace_cards()
   + play(card, [target], [position], [choice])
   + attack(subject, object)
   + end()
@@ -49,16 +57,13 @@ Design Draft
   + equip(weapon, [target])
   + control(minion, one_turn=False)
   + heal(targets, amount)
+  + duplicate(source)
+  + transform(source, target)
 * Object
+  * name
   * game
   * id
-  * name
   * owner: the owner of all objects is a player except hero power (the owner is a hero).
-  * battlecry
-  * deathrattle
-  * triggers (triggered effects)
-  * auras (ongoing_effects)
-  + destroy()
 * Card
   * cost
   * overload
@@ -81,17 +86,23 @@ Design Draft
   * weapon
 * SecretCard
   * secret
+* Entity
+  * battlecry
+  * deathrattle
+  * triggers (triggered effects)
+  * auras (ongoing_effects)
+  + destroy()
 * Character
   * attack
   * health
   * full_health
   * dying
-  * type
+  * race
   * windfury
   * cannot_attack
   * stealth
   * taunt
-  * freeze
+  * frozen
   * immune
   * divine_shield
   * spell_immune
@@ -108,6 +119,7 @@ Design Draft
   + take_damage(amount)
   + restore(amount)
   + silence()
+  + freeze()
 * Hero
   * armor
   * weapon

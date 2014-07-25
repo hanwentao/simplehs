@@ -54,7 +54,7 @@
     "health": 1,
     "elite": 1,
     "name": "Bloodmage Thalnos",
-    "description": "Spell Damage +1. Deathrattle: Draw a card.",
+    "description": "Spell Damage +1.  Deathrattle: Draw a card.",
     "createdAt": "2014-04-10T18:25:17.639Z",
     "updatedAt": "2014-04-10T18:25:17.639Z",
     "id": 4
@@ -164,7 +164,7 @@
     "attack": 1,
     "health": 1,
     "name": "Patient Assassin",
-    "description": "Stealth. Destroy any minion damaged by this minion.",
+    "description": "Stealth.  Destroy any minion damaged by this minion.",
     "createdAt": "2014-04-10T18:25:17.695Z",
     "updatedAt": "2014-04-10T18:25:17.695Z",
     "id": 12

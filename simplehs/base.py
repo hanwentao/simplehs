@@ -1,633 +1,471 @@
+#!/usr/bin/env python3
 # Base classes
 
-import collections
-import importlib
-import inspect
 import logging
-import random
+
+from .utils import Dict
+from .utils import List
+from .utils import Random
+from .utils import get_class
 
 
-class on(object):
-    """A decorator indicates an event handler"""
+class GameOver(Exception):
+    """An exception that indicates the game is over."""
 
-    def __init__(self, event):
-        self._event = event
-
-    def __call__(self, handler):
-        def wrapped_handler(*args, **kwargs):
-            return handler(*args, **kwargs)
-        wrapped_handler._event = self._event
-        return wrapped_handler
+    def __init__(self, winner=None):
+        super().__init__()
+        self.winner = winner
 
 
-class Object(object):
-    """An object"""
+class Game:
+    """An instance of Hearthstone game."""
 
-    def __init__(self, root, id, owner, name):
-        self._root = root
-        self._id = id
-        self._owner = owner
-        self._name = name
-        self._handlers = collections.defaultdict(list)
-        members = inspect.getmembers(self, inspect.ismethod)
-        for name, member in members:
-            event = getattr(member, '_event', None)
-            if event is not None:
-                self._handlers[event].append(member)
-
-
-    def __hash__(self):
-        return self._id
-
-    @property
-    def root(self):
-        return self._root
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def owner(self):
-        return self._owner
-
-    @owner.setter
-    def owner(self, value):
-        self._owner = value
-
-    @property
-    def name(self):
-        return self._name
-
-    def handle(self, event, *args, **kwargs):
-        handler_list = self._handlers[event]
-        for handler in handler_list:
-            handler(*args, **kwargs)
-
-
-class Character(Object):
-    """A character"""
-
-    def __init__(self, root, id, owner, name, attack, health):
-        super(Character, self).__init__(root, id, owner, name)
-        self._base_attack = attack
-        self._base_health = health
-        self._sleeping = False
-        self._charge = False
-        self._taunt = False
-        self._num_attacks_allowed = 1
-        self._num_attacks_done = 0
+    def __init__(self, agents, rng=None):
+        self._date = 0
+        # Set up RNG
+        self.rng = rng if rng is not None else Random()
+        # Set up the two players
+        agent0, agent1 = agents
+        player0 = Player(self, agent0)
+        player1 = Player(self, agent1)
+        agent0.player = player0
+        agent1.player = player1
+        self.players = (player0, player1)
+        player0.opponent = player1
+        player1.opponent = player0
+        # Decide who goes first
+        self.turn_num = None
+        self.who = self.rng.choice(self.players)
+        self.who.go_first = True
+        self.who.opponent.go_first = False
+        # Draw the starting hands
+        self.who.draw(3)
+        self.who.opponent.draw(4)
+        # TODO: Get a coin
 
     def __str__(self):
-        return str((self.name, self.attack, self.health))
+        return '({turn_num}, {who}\n {player0},\n {player1})'.format(
+            turn_num=self.turn_num,
+            who=self.who.name,
+            player0=str(self.players[0]),
+            player1=str(self.players[1]),
+        )
 
-    def __repr__(self):
-        return str(self)
+    def run(self):
+        # Replace the starting hands
+        action = self.who.agent.decide()
+        if action.name == 'replace':
+            self.who.do_action(action)
+        action = self.who.opponent.agent.decide()
+        if action.name == 'replace':
+            self.who.opponent.do_action(action)
+        # Game begins
+        try:
+            for self.turn_num in range(98):
+                if self.who.full_mana < 10:
+                    self.who.full_mana += 1
+                self.who.mana = self.who.full_mana
+                self.who._info('Turn #{turn_num} started', turn_num=self.turn_num)
+                self.trigger('turn_start', self.who)
+                self.who.draw()
+                self.check()
+                while True:
+                    # print(self)
+                    action = self.who.agent.decide()
+                    if action.name != 'replace':
+                        end_turn = self.who.do_action(action)
+                        if end_turn:
+                            break
+                # XXX: To implement as a triggered event
+                self.who.hero.reset()
+                for minion in self.who.battlefield:
+                    minion.reset()
+                self.trigger('turn_end', self.who)
+                self.who._info('Turn #{turn_num} ended', turn_num=self.turn_num)
+                self.who = self.who.opponent
+            else:
+                raise GameOver()
+        except GameOver as result:
+            print(self)
+            if result.winner is not None:
+                logging.info('{name} won.'.format(name=result.winner.name))
+            else:
+                logging.info('Game tied.')
 
-    @property
-    def attack(self):
-        return self._base_attack
+    def _fetch_and_add_date(self):
+        date = self._date
+        self._date += 1
+        return date
 
-    @property
-    def health(self):
-        return self._base_health
+    def create(self, class_, *args, **kwargs):
+        object = class_(*args, **kwargs)
+        object.game = self
+        object.dob = self._fetch_and_add_date()
+        return object
 
-    @property
-    def can_attack(self):
-        return (self.attack > 0 and not self._sleeping and
-                self._num_attacks_done < self._num_attacks_allowed)
+    def trigger(self, event, *args, **kwargs):
+        pass
 
-    @property
-    def dying(self):
-        return self.health <= 0
+    def check(self):
+        for character in self.all_characters():
+            if character.health <= 0:
+                character.destroy()
+        player0, player1 = self.players
+        if player0.hero.health <= 0 and player1.hero.health <= 0:
+            raise GameOver()  # Draw
+        elif player0.hero.health <= 0:
+            raise GameOver(player1)
+        elif player1.hero.health <= 0:
+            raise GameOver(player0)
 
-    @property
-    def charge(self):
-        return self._charge
-
-    @charge.setter
-    def charge(self, value):
-        self._charge = value
-        if value and self._sleeping:
-            self._sleeping = False
-
-    @property
-    def taunt(self):
-        return self._taunt
-
-    @taunt.setter
-    def taunt(self, value):
-        self._taunt = value
-
-    def reset_attack_status(self):
-        self._sleeping = False
-        self._num_attacks_done = 0
-
-    def attack_(self, target):
-        if not self.can_attack:
-            logging.warning('Character [%s] cannot attack', self.name)
-            return
-        if target.owner.taunt_minions and not target.taunt:
-            logging.warning('Cannot attack non-taunt characters')
-            return
-        logging.info('Character [%s] is attacking character [%s]',
-                     self.name, target.name)
-        self._num_attacks_done += 1
-        self.root.trigger('attacking', self, target)
-        self.root.trigger('taken_damage', target, self.attack)
-        self.root.trigger('taken_damage', self, target.attack)
-
-    @on('taken_damage')
-    def take_damage(self, damage):
-        if damage <= 0:
-            return
-        logging.info('Character [%s] took %d damage', self.name, damage)
-        self._base_health -= damage
-        if self.dying:
-            self.root.trigger('dying', self)
-
-    @on('dying')
-    def die(self):
-        self.root.trigger('destroying', self)
-
-    @on('destroying')
-    def destroy(self):
-        logging.info('Character [%s] died', self.name)
-
-
-class Hero(Character):
-    """A hero"""
-
-    def __init__(self, root, id, owner, name, health):
-        super(Hero, self).__init__(root, id, owner, name, 0, health)
-
-    @on('destroying')
-    def destroy(self):
-        super(Hero, self).destroy()
-        raise MatchResult(self.owner.opponent)
+    def all_characters(self):
+        return self.players[0].all_characters() + self.players[1].all_characters()
 
 
-class Minion(Character):
-    """A minion"""
+class Agent:
+    """An instance of an agent."""
 
-    def __init__(self, root, id, owner, name, attack, health,
-                 charge=False, taunt=False, battlecry=None, deathrattle=None):
-        super(Minion, self).__init__(root, id, owner, name, attack, health)
-        self._sleeping = True
-        self.charge = charge
-        self.taunt = taunt
-        self._battlecry = battlecry
-        self._deathrattle = deathrattle
+    def __init__(self, name, hero=None, deck=None, player=None):
+        self.name = name
+        self.hero = hero
+        self.deck = deck
+        self.player = player
 
-    def battlecry(self):
-        if self._battlecry is not None:
-            self._battlecry(self)
-
-    def deathrattle(self):
-        if self._deathrattle is not None:
-            self._deathrattle(self)
-
-    @on('dying')
-    def die(self):
-        if self.deathrattle is not None:
-            self.deathrattle()
-        super(Minion, self).die()
-
-    @on('destroying')
-    def destroy(self):
-        self.owner.battlefield.remove(self)
-        self.root.remove(self)
-        super(Minion, self).destroy()
+    def decide(self):
+        action = Dict()
+        action.name = 'end'
+        return action
 
 
-class Weapon(Object):
+class Deck(List):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fatigue = 0
+
+    def draw(self):
+        if len(self) > 0:
+            return self.pop(0)
+        else:
+            self.fatigue += 1
+            return self.fatigue
+
+
+class Hand(List):
+
+    def acquire(self, card):
+        if len(self) < 10:
+            self.append(card)
+        else:
+            logging.info('{name}: Hand is full, {card} destroyed.'.format(
+                name=self.owner.name,
+                card=card,
+            ))
+
+
+class Battlefield(List):
     pass
 
 
-class Card(Object):
-    """A card"""
+class Player:
+    """An instance of game player."""
 
-    def __init__(self, root, id, owner, name, cost):
-        super(Card, self).__init__(root, id, owner, name)
-        self._cost = cost
+    def __init__(self, game, agent):
+        self.game = game
+        self.agent = agent
+        self.name = agent.name
+        self.go_first = None
+        self.deck = Deck()
+        self.deck.owner = self
+        self.hand = Hand()
+        self.hand.owner = self
+        self.battlefield = Battlefield()
+        self.battlefield.owner = self
+        # TODO: secrets
+        self.mana = 0
+        self.full_mana = 0
+        hero_class = get_class(agent.hero)
+        self.hero = self.create(hero_class)
+        for card in agent.deck:
+            card_class = get_class(card)
+            card = self.create(card_class)
+            self.deck.append(card)
+        self.game.rng.shuffle(self.deck)
+
+    def __str__(self):
+        return '({current}{name}{go_first}, {mana}/{full_mana}, {hero}, {battlefield}, {hand}, {deck})'.format(
+            name=self.name,
+            go_first='+' if self.go_first else '',
+            current='*' if self.game.who is self else '',
+            mana=self.mana,
+            full_mana=self.full_mana,
+            hero=self.hero,
+            battlefield=str(self.battlefield),
+            hand=str(self.hand),
+            deck=str(self.deck),
+        )
+
+    def create(self, *args, **kwargs):
+        object = self.game.create(*args, **kwargs)
+        object.owner = self
+        return object
+
+    def do_action(self, action):
+        method = getattr(self, action.name)
+        del action.name
+        return method(**action)
+
+    def replace(self, cards=None):
+        if cards is None:
+            cards = []
+        card_index_list = self.get_card_index_list(cards)
+        for card_index in card_index_list:
+            card = self.hand[card_index]
+            index = self.game.rng.randrange(len(self.deck) + 1)
+            self.deck.insert(index, card)
+        for card_index in card_index_list:
+            card = self.deck.pop(0)
+            self.hand[card_index] = card
+
+    def play(self, card, target=None, position=None, choice=None):
+        if not card.can_play:
+            self._warning('Cannot play ({card}).', card=card.name)
+        args = Dict()
+        if isinstance(card, MinionCard):
+            args.position = position
+            if 'battlecry' in card.abilities:
+                battlecry = card.abilities.battlecry
+                if getattr(battlecry, 'need_target', False):
+                    args.target = target
+        self._info('Played {card}.', card=card)
+        card.play(**args)
+        # TODO: Check death
+
+    def attack(self, subject, object):
+        if not subject.can_attack():
+            self._warning('{subject} cannot attack.', subject=subject.name)
+            return
+        subject.attack_(object)
+        self.game.check()
+
+    def end(self):
+        return True
+
+    def concede(self):
+        raise GameOver(self.opponent)
+
+    def draw(self, num_cards=1):
+        for card_num in range(num_cards):
+            card = self.deck.draw()
+            if isinstance(card, Card):
+                self.hand.acquire(card)
+                self._info('Drew {card}.', card=card)
+            else:
+                fatigue = card
+                self.hero.take_damage(fatigue)
+                self._info('{hero} took {damage} fatigue damage.', hero=self.hero.name, damage=fatigue)
+
+    def get_card_index_list(self, cards):
+        # TODO: More cases
+        return cards
+
+    def all_characters(self):
+        return [self.hero] + self.battlefield
+
+    def _log(self, level, message, *args, **kwargs):
+        message = self.name + ': ' + message.format(*args, **kwargs)
+        logging.log(level, message)
+
+    def _debug(self, message, *args, **kwargs):
+        self._log(logging.DEBUG, message, *args, **kwargs)
+
+    def _info(self, message, *args, **kwargs):
+        self._log(logging.INFO, message, *args, **kwargs)
+
+    def _warning(self, message, *args, **kwargs):
+        self._log(logging.WARNING, message, *args, **kwargs)
+
+    def _error(self, message, *args, **kwargs):
+        self._log(logging.ERROR, message, *args, **kwargs)
+
+
+class Object:
+    """An instance of game object."""
+
+    def __init__(self, name):
+        self.name = name
 
     def __str__(self):
         return self.name
 
-    def __repr__(self):
-        return str(self)
 
-    @property
-    def cost(self):
-        return self._cost
+class Card(Object):
+    """An instance of a card."""
 
-    @property
+    def __init__(self, name, cost):
+        super().__init__(name)
+        self.cost = cost
+
+    def __str__(self):
+        return '({abilities}{name} #{dob}, {cost})'.format(
+            name=self.name,
+            dob=self.dob,
+            cost=self.cost,
+            abilities='*' if self.abilities else '',
+        )
+
     def can_play(self):
-        enough_mana = self.cost <= self.owner.mana
-        if not enough_mana:
-            logging.debug('Not enough mana for card (%s): %d > %d',
-                          self.name, self.cost, self.owner.mana)
-        return enough_mana
+        return self.cost <= self.owner.mana
 
     def play(self):
-        logging.info('Player <%s> played a card (%s)',
-                     self.owner.name, self.name)
+        self.owner.mana -= self.cost
+        self.owner.hand.remove(self)
 
 
 class MinionCard(Card):
-    """A minion card"""
+    """An instance of a minion card."""
 
-    def __init__(self, root, id, owner, name, cost, attack, health, **effects):
-        super(MinionCard, self).__init__(root, id, owner, name, cost)
-        self._attack = attack
-        self._health = health
-        self._effects = effects
+    def __init__(self, name, cost, attack, health, **kwargs):
+        super().__init__(name, cost)
+        self.attack = attack
+        self.health = health
+        self.abilities = Dict(kwargs)
 
-    @property
+    def __str__(self):
+        return '({abilities}{name} #{dob}, {cost}, {attack}, {health})'.format(
+            name=self.name,
+            dob=self.dob,
+            cost=self.cost,
+            attack=self.attack,
+            health=self.health,
+            abilities='*' if self.abilities else '',
+        )
+
     def can_play(self):
-        enough_mana = super(MinionCard, self).can_play
-        has_room = len(self.owner.battlefield) < 7
-        if not has_room:
-            logging.debug('No room for minion')
-        return enough_mana and has_room
+        return super().can_play() and len(self.owner.battlefield) < 7
 
-    @property
-    def attack(self):
-        return self._attack
-
-    @property
-    def health(self):
-        return self._health
-
-    @property
-    def effects(self):
-        return self._effects
-
-    def play(self):
-        super(MinionCard, self).play()
-        minion = self.root.create(Minion, self.owner,
-                                  self.name, self.attack, self.health,
-                                  **self.effects)
-        self.owner._mana -= self.cost
-        self.owner.battlefield.append(minion)
-        logging.info('Player <%s> summoned a minion [%s]',
-                     self.owner.name, minion.name)
-        if minion.battlecry is not None:
-            minion.battlecry()
+    def play(self, position, target=None):
+        super().play()
+        minion = self.owner.create(Minion, self.name, self.attack, self.health, **self.abilities)
+        minion.card = self
+        if position is None:
+            position = len(self.owner.battlefield)
+        self.owner.battlefield.insert(position, minion)
+        self.owner._info('Summoned {minion} at {position}',
+                          minion=minion, position=position)
+        if 'battlecry' in minion.abilities:
+            battlecry = minion.abilities.battlecry
+            args = Dict()
+            if getattr(battlecry, 'need_target', False):
+                args.target = target
+            battlecry(**args)
 
 
 class SpellCard(Card):
-    """A spell card"""
+    pass
 
-    def __init__(self, root, id, owner, name, cost):
-        super(SpellCard, self).__init__(root, id, owner, name, cost)
+
+class SecretCard(SpellCard):
+    pass
 
 
 class WeaponCard(Card):
     pass
 
 
-class Player(Object):
-    """A player"""
+class Entity(Object):
+    """An instance of game entity (on the board)."""
 
-    def __init__(self, root, id, owner, client, first):
-        super(Player, self).__init__(root, id, owner, client.name)
-        self._client = client
-        self._opponent = None
-        self._first = first
-        self._hero = root.create(client.hero_class, self)
-        self._deck = Deck()
-        module_cards = importlib.import_module('simplehs.cards')
-        for card_name in client.deck:
-            card_class = getattr(module_cards, card_name)
-            card = root.create(card_class, self)
-            self._deck.append(card)
-        self._deck.shuffle(root.random)
-        self._hand = Hand()
-        self._battlefield = Battlefield()
-        self._full_mana = 0
-        self._mana = 0
+    def __init__(self, name):
+        super().__init__(name)
+
+
+class Character(Entity):
+    """An instance of character."""
+
+    def __init__(self, name, attack, health):
+        super().__init__(name)
+        self.attack = attack
+        self.health = health
+        self.attack_count = 0
+        self.attack_limit = 1
+        self.abilities = Dict()
 
     def __str__(self):
-        return str((self.name,
-                    self.hero,
-                    self.mana,
-                    self.full_mana,
-                    self.battlefield,
-                    self.hand,
-                    self.deck,
-                   ))
+        return '({abilities}{name} #{dob}, {attack}, {health})'.format(
+            name=self.name,
+            dob=self.dob,
+            attack=self.attack,
+            health=self.health,
+            abilities='*' if self.abilities else '',
+        )
 
     @property
-    def client(self):
-        return self._client
+    def charge(self):
+        return self.abilities.get('charge', False)
 
-    @property
-    def opponent(self):
-        return self._opponent
+    def reset(self):
+        self.attack_count = 0
 
-    @opponent.setter
-    def opponent(self, value):
-        self._opponent = value
+    def can_attack(self):
+        return self.attack > 0 and self.attack_count < self.attack_limit
 
-    @property
-    def first(self):
-        return self._first
+    def attack_(self, target):
+        self.owner._info('{subject} was attacking {object}.', subject=self, object=target)
+        target.deal_damage(self)
+        self.deal_damage(target)
+        self.attack_count += 1
 
-    @property
-    def hero(self):
-        return self._hero
+    def deal_damage(self, target):
+        if self.attack > 0:
+            target.take_damage(self.attack)
 
-    @property
-    def deck(self):
-        return self._deck
+    def take_damage(self, damage):
+        self.owner._info('{subject} took {damage} damage.', subject=self, damage=damage)
+        self.health -= damage
 
-    @property
-    def hand(self):
-        return self._hand
-
-    @property
-    def battlefield(self):
-        return self._battlefield
-
-    @property
-    def full_mana(self):
-        return self._full_mana
-
-    @property
-    def mana(self):
-        return self._mana
-
-    @property
-    def taunt_minions(self):
-        return [minion for minion in self.battlefield if minion.taunt]
-
-    def regenerate(self):
-        """Regenerate mana crystals."""
-        self._full_mana = min(self._full_mana + 1, 10)
-        self._mana = self._full_mana
-        logging.info('Player <%s> regenerated %d mana', self.name, self.mana)
-
-    def draw(self, num_cards=1):
-        """Draw some cards."""
-        for card_num in xrange(num_cards):
-            success, card_or_fatigue = self.deck.draw()
-            if success:
-                card = card_or_fatigue
-                self.hand.append(card)
-                logging.info('Player <%s> drew a card (%s)',
-                             self.name, card.name)
-            else:
-                fatigue = card_or_fatigue
-                logging.info('Player <%s> took a fatigue of %d',
-                             self.name, fatigue)
-                self.hero.take_damage(fatigue)
-
-    def replace(self):
-        """Replace the starting hand."""
-        card_index_list = self.client.replace(self)[1]
-        cards = self.hand.remove_(card_index_list)
-        self.draw(len(card_index_list))
-        self.deck.put_back(cards, self.root.random)
-
-    def play(self, card):
-        """Play a card."""
-        self.hand.remove(card)
-        card.play()
+    def destroy(self):
+        self.owner._info('{subject} destroyed.', subject=self)
 
 
-class Deck(list):
-    """A deck of cards"""
+class Hero(Character):
+    """An instance of hero."""
 
-    def __init__(self, *args, **kwargs):
-        super(Deck, self).__init__(*args, **kwargs)
-        self._fatigue = 0
-
-    def shuffle(self, random):
-        random.shuffle(self)
-
-    def draw(self):
-        if len(self) > 0:
-            return (True, self.pop(0))
-        else:
-            self._fatigue += 1
-            return (False, self._fatigue)
-
-    def put_back(self, cards, random):
-        for card in cards:
-            index = random.randint(0, len(self))
-            self.insert(index, card)
+    def __init__(self, name, health):
+        super().__init__(name, 0, health)
 
 
-class Hand(list):
-    """A hand of cards"""
+class Minion(Character):
+    """An instance of minion."""
 
-    def remove_(self, index_list):
-        removed_cards = [self[index] for index in index_list]
-        for card in removed_cards:
-            self.remove(card)
-        return removed_cards
+    def __init__(self, name, attack, health, **kwargs):
+        super().__init__(name, attack, health)
+        self.abilities = Dict(kwargs)
+        self.sleeping = not self.charge
+
+    def reset(self):
+        super().reset()
+        self.sleeping = False
+
+    def can_attack(self):
+        return super().can_attack() and not self.sleeping
+
+    def destroy(self):
+        self.owner.battlefield.remove(self)
+        super().destroy()
 
 
-class Battlefield(list):
+class Weapon(Entity):
     pass
 
 
-class Client(object):
-    """A Hearthstone client represents a player."""
-
-    def __init__(self, name, hero_class, deck):
-        self._name = name
-        self._hero_class = hero_class
-        self._deck = deck
-
-    def __str__(self):
-        return self._name
-
-    def __repr__(self):
-        return str(self)
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def hero_class(self):
-        return self._hero_class
-
-    @property
-    def deck(self):
-        return self._deck
-
-    def replace(self, player):
-        return ('replace', [])
-
-    def decide(self, player):
-        return ('end', )
+class Secret(Entity):
+    pass
 
 
-class Configuration(object):
-    """Match configuration"""
-
-    def __init__(self, *args, **kwargs):
-        self._config = {}
-
-    @property
-    def seed(self):
-        return self._config.get('seed', 0)
-
-    @seed.setter
-    def seed(self, value):
-        self._config['seed'] = value
-
-    @property
-    def coin(self):
-        return self._config.get('coin', True)
-
-    @coin.setter
-    def coin(self, value):
-        self._config['coin'] = value
-
-    @property
-    def display(self):
-        return self._config.get('display', False)
-
-    @display.setter
-    def display(self, value):
-        self._config['display'] = value
+class Spell(Object):
+    pass
 
 
-class MatchResult(Exception):
-    """Exception indicates the result of a match"""
-
-    def __init__(self, winner):
-        self._winner = winner
-
-    @property
-    def winner(self):
-        return self._winner
-
-
-class Match(object):
-    """A match"""
-
-    def __init__(self, client1, client2, config=None):
-        self._config = config if config is not None else Configuration()
-        self._client1 = client1
-        self._client2 = client2
-        self._random = random.Random(config.seed)
-        self._objects = set()
-        self._next_id = 0
-
-    @property
-    def random(self):
-        return self._random
-
-    def next_id(self):
-        # XXX: Concurrent issue?
-        new_id = self._next_id
-        self._next_id += 1
-        return new_id
-
-    def create(self, class_, owner, *args, **kwargs):
-        """Create an object, e.g., Card, Hero, Minion, Weapon, etc."""
-        id = self.next_id()
-        object = class_(self, id, owner, *args, **kwargs)
-        self._objects.add(object)
-        return object
-
-    def remove(self, object):
-        self._objects.remove(object)
-
-    def trigger(self, event, object, *args, **kwargs):
-        object.handle(event, *args, **kwargs)
-
-    def run(self):
-        self._turn_num = 0
-        client1_is_first = self.random.randint(0, 1) == 0
-        client2_is_first = not client1_is_first
-        player1 = self.create(Player, None, self._client1, client1_is_first)
-        player2 = self.create(Player, None, self._client2, client2_is_first)
-        player1.opponent = player2
-        player2.opponent = player1
-        if client2_is_first:
-            player1, player2 = player2, player1
-        try:
-            player1.draw(3)
-            player2.draw(4)
-            player1.replace()
-            player2.replace()
-            if self._config.coin:
-                from cards import TheCoin
-                coin = self.create(TheCoin, player2)
-                player2.hand.append(coin)
-                logging.info('Player <%s> obtained a card (%s)',
-                             player2.name, coin.name)
-            player = player1
-            self.new_turn(player)
-            while True:
-                if self._config.display:
-                    print player.opponent
-                    print player
-                action = player.client.decide(player)  # TODO: Add events
-                if action[0] == 'play':  # Play a card
-                    card_index = action[1]
-                    self.play(player, card_index)
-                elif action[0] == 'attack':  # Order a minion to attack
-                    attacker_index = action[1]
-                    attackee_index = action[2]
-                    self.attack(player, attacker_index, attackee_index)
-                elif action[0] == 'end':  # End this turn
-                    self.trigger('turn_end', player)
-                    player = player.opponent
-                    self.new_turn(player)
-                elif action[0] == 'concede':  # Concede
-                    raise MatchResult(player.opponent)
-                else:
-                    logging.warning('Invalid action: %s', action)
-        except MatchResult as match_result:
-            winner = match_result.winner
-        except:
-            raise
-        logging.info('Player <%s> won', winner.name)
-        return (winner.client, winner.first, self._turn_num)
-
-    def new_turn(self, player):
-        self._turn_num += 1
-        logging.info('Turn #%d began', self._turn_num)
-        player.regenerate()
-        for minion in player.battlefield:
-            minion.reset_attack_status()
-        self.trigger('turn_start', player)
-        player.draw()
-
-    def play(self, player, card_index, position=None, target=None):
-        card_index = int(card_index)
-        if not (0 <= card_index < len(player.hand)):
-            logging.warning('Invalid card index: %d', card_index)
-            return
-        card = player.hand[card_index]
-        if not card.can_play:
-            logging.warning('Cannot play card (%s)', card.name)
-            return
-        player.play(card)
-
-    def attack(self, player, attacker_index, attackee_index):
-        if attacker_index == 'H' or attacker_index == 'h':
-            attacker = player.hero
-        else:
-            attacker_index = int(attacker_index)
-            if not (0 <= attacker_index < len(player.battlefield)):
-                logging.warning('Invalid attacker index: %d', attacker_index)
-                return
-            attacker = player.battlefield[attacker_index]
-        enemy = player.opponent
-        if attackee_index == 'H' or attackee_index == 'h':
-            attackee = enemy.hero
-        else:
-            attackee_index = int(attackee_index)
-            if not (0 <= attackee_index < len(enemy.battlefield)):
-                logging.warning('Invalid attackee index: %d', attackee_index)
-                return
-            attackee = enemy.battlefield[attackee_index]
-        attacker.attack_(attackee)
+class HeroPower(Spell):
+    pass
