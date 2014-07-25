@@ -33,6 +33,7 @@ class TestCharge(unittest.TestCase):
         alice.acquire(BloodfenRaptor)
         alice.play(alice.hand[-1])
         raptor = alice.battlefield[-1]
+        self.assertFalse(raptor.charge)
         with self.assertRaises(AttackException):
             alice.attack(raptor, bob.hero)
         alice.end()
@@ -43,5 +44,6 @@ class TestCharge(unittest.TestCase):
         alice.acquire(StonetuskBoar)
         alice.play(alice.hand[-1])
         boar = alice.battlefield[-1]
+        self.assertTrue(boar.charge)
         alice.attack(boar, bob.hero)
         self.assertEqual(bob.hero.health, 26)
