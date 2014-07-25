@@ -390,9 +390,12 @@ def generate_code(card):
                 remaining.remove(piece)
         if remaining:
             raise NotImplementedError(repr(remaining))
+        if card.type == 'spell':
+            attributes = (abilities['action'],)
+            del abilities['action']
         code.write('{class_name} = make_{type}_card("{name}", {cost}'.format(**card))
         if attributes:
-            card.attributes = ', '.join(str(a) for a in attributes)
+            card.attributes = ', '.join(to_string(a) for a in attributes)
             code.write(', {attributes}'.format(**card))
         if abilities:
             card.abilities = ', '.join(k + '=' + to_string(v) for k, v in abilities.items())
@@ -443,6 +446,7 @@ from .utils import *
         for class_ in CLASS_CODE.values():
             code_file.write('from .{class_} import *\n'.format(**locals()))
             print('{}: {}'.format(class_, percentage(class_generated[class_], class_total[class_])))
+        code_file.write('from .special import *\n')
     print('total: {}'.format(percentage(generated, len(card_info_list))))
 
 

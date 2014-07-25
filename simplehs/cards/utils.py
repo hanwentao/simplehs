@@ -32,8 +32,21 @@ def make_minion_card(name, cost, attack, health, **kwargs):
     return class_
 
 
-def make_spell_card(name, cost, **kwargs):
-    pass
+_SPELL_CARD_CLASS_TEMPLATE = """\
+class {class_name}(SpellCard):
+
+    def __init__(self):
+        super().__init__("{name}", {cost}, {effect}{abilities})
+"""
+
+def make_spell_card(name, cost, effect, **kwargs):
+    class_name = pascalize(name)
+    abilities = ', ' + join_args(kwargs)
+    class_definition = _SPELL_CARD_CLASS_TEMPLATE.format(**locals())
+    namespace = dict(globals())
+    exec(class_definition, namespace)
+    class_ = namespace[class_name]
+    return class_
 
 
 def make_weapon_card(name, cost, attack, durability, **kwargs):

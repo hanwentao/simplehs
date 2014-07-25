@@ -23,6 +23,9 @@ class TestGame(unittest.TestCase):
         agents = (alice_agent, bob_agent)
         self.game = Game(agents)
 
+    #def tearDown(self):
+    #    print(self.game)
+
     def test_init(self):
         game = self.game
         alice = game.players[0]
@@ -42,6 +45,7 @@ class TestGame(unittest.TestCase):
         game = self.game
         alice = game.players[0]
         bob = game.players[1]
+        # TODO: Really replace cards
         alice.replace()
         with self.assertRaises(StateException):
             alice.replace()
@@ -111,3 +115,16 @@ class TestGame(unittest.TestCase):
         bob.replace()
         with self.assertRaises(GameOver):
             bob.concede()
+
+    def test_coin(self):
+        game = self.game
+        alice = game.players[0]
+        bob = game.players[1]
+        alice.replace()
+        bob.replace()
+        self.assertEqual(bob.hand.size, 5)
+        alice.end()
+        with self.assertRaises(PlayException):
+            bob.play(bob.hand[0])
+        bob.play(bob.hand[-2])
+        bob.play(bob.hand[0])

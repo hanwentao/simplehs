@@ -86,7 +86,9 @@ class Game:
         else:
             self.state = Game.PLAYING
             self.turn_num = 0
-            # TODO: Get a coin for the opponent
+            from .cards.special import TheCoin
+            coin = self.who.opponent._create(TheCoin)
+            self.who.opponent.hand.acquire(coin)
         if self.who.full_mana < 10:
             self.who.full_mana += 1
         self.who.mana = self.who.full_mana
@@ -372,6 +374,8 @@ class Card(Object):
         return self.cost <= self.owner.mana
 
     def play(self):
+        self.owner._check_state()
+        self._check_can_play()
         self.owner.mana -= self.cost
         self.owner.hand.remove(self)
 
@@ -393,8 +397,6 @@ class MinionCard(Card):
         return super().can_play() and self.owner.battlefield.size < 7
 
     def play(self, position=None, **kwargs):
-        self.owner._check_state()
-        self._check_can_play()
         super().play()
         minion = self.owner._create(Minion, self.name, self.attack, self.health, **self.abilities)
         minion.card = self
@@ -417,7 +419,25 @@ class MinionCard(Card):
 
 
 class SpellCard(Card):
-    pass
+    """An instance of a spell card."""
+
+    def __init__(self, name, cost, effect, **kwargs):
+        super().__init__(name, cost)
+        self.effect = effect
+        self.abilities = Dict(kwargs)
+
+    def can_play(self):
+        # TODO: Check target
+        return super().can_play()
+
+    def play(self, **kwargs):
+        super().play()
+        self.effect(self.owner)  # XXX: Proper arguments
+
+    def _check_can_play(self):
+        super()._check_can_play()
+        # TODO: Check target
+
 
 
 class SecretCard(SpellCard):
