@@ -351,6 +351,23 @@ class Player:
         del action.name
         return method(**action)
 
+    def _expand(self, signature, **kwargs):
+        args = Dict()
+        for name, symbol in signature.items():
+            value = self._expand_symbol(symbol, **kwargs)
+            args[name] = value
+        return args
+
+    def _expand_symbol(self, symbol, **kwargs):
+        if symbol == 'self':
+            return self
+        elif symbol == 'enemy':
+            return self.opponent
+        elif symbol == 'target':
+            return kwargs['target']
+        else:
+            raise ValueError('unknown symbol: {symbol}'.format(symbol=symbol))
+
     def draw(self, num_cards=1):
         if self.game.debug:
             return
@@ -490,8 +507,9 @@ class SpellCard(Card):
         return super().can_play()
 
     def play(self, **kwargs):
+        args = self.owner._expand(self.effect.signature, **kwargs)
         super().play()
-        self.effect(self.owner)  # XXX: Proper arguments
+        self.effect(**args)
 
     def _check_can_play(self):
         super()._check_can_play()
