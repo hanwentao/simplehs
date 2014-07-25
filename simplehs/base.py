@@ -503,13 +503,21 @@ class Character(Entity):
         self.abilities = Dict()
 
     def __str__(self):
-        return '({name}{abilities}, {attack}, {health}/{full_health})'.format(
+        return '({name}{separator}{status}, {attack}, {health}/{full_health})'.format(
             name=self.name,
             attack=self.attack,
             health=self.health,
             full_health=self.full_health,
-            abilities='*' if self.abilities else '',
+            separator=':' if self.status else '',
+            status=self.status,
         )
+
+    @property
+    def status(self):
+        result = ''
+        if self.charge:
+            result += 'C'
+        return result
 
     @property
     def charge(self):
@@ -554,13 +562,13 @@ class Hero(Character):
         self.armor = 0
 
     def __str__(self):
-        return '({name}{abilities}, {attack}, {health}/{full_health}, {armor})'.format(
+        return '({name}{status}, {attack}, {health}/{full_health}, {armor})'.format(
             name=self.name,
             attack=self.attack,
             health=self.health,
             full_health=self.full_health,
             armor=self.armor,
-            abilities='*' if self.abilities else '',
+            status=self.status,
         )
 
 
