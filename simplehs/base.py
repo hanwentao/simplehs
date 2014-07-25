@@ -41,7 +41,8 @@ class Game:
     PLAYING = '<playing>'
     FINISHED = '<finished>'
 
-    def __init__(self, agents, rng=None):
+    def __init__(self, agents, rng=None, debug=False):
+        self.debug = debug
         self._date = 0
         # Set up random number generator
         self.rng = rng if rng is not None else Random()
@@ -62,8 +63,12 @@ class Game:
         # Draw the starting hands
         self.who.draw(3)
         self.who.opponent.draw(4)
-        self.state = Game.REPLACING
         self.winner = None
+        if not self.debug:
+            self.state = Game.REPLACING
+        else:
+            self.state = Game.PLAYING
+            self.next_turn()
 
     def __str__(self):
         return '({turn_num}, {who}, {player0}, {player1})'.format(
@@ -79,12 +84,12 @@ class Game:
             self.who.hero.reset()
             for minion in self.who.battlefield:
                 minion.reset()
-            self.trigger('turn_end', self.who)
             self.who._info('Turn #{turn_num} ended', turn_num=self.turn_num)
+            self.trigger('turn_end', self.who)
+            self.check_finish()
             self.who = self.who.opponent
             self.turn_num += 1
         else:
-            self.state = Game.PLAYING
             self.turn_num = 0
             from .cards.special import TheCoin
             coin = self.who.opponent._create(TheCoin)
@@ -94,8 +99,19 @@ class Game:
         self.who.mana = self.who.full_mana
         self.who._info('Turn #{turn_num} started', turn_num=self.turn_num)
         self.trigger('turn_start', self.who)
+        self.check_finish()
         self.who.draw()
+        self.check_finish()
         self.check()
+
+    def check_finish(self):
+        player0, player1 = self.players
+        if player0.hero.health <= 0 and player1.hero.health <= 0:
+            self.finish(None)  # It's a tie.
+        elif player0.hero.health <= 0:
+            self.finish(player1)
+        elif player1.hero.health <= 0:
+            self.finish(player0)
 
     def finish(self, winner):
         self.state = Game.FINISHED
@@ -278,27 +294,39 @@ class Player:
             self.hand[index] = card
         self.replaced = True
         if self.opponent.replaced:
+            self.game.state = Game.PLAYING
             self.game.next_turn()
 
     def play(self, card, *args, **kwargs):
+        self._check_state()
         if card not in self.hand:
             raise PlayException('{card} is not your card'.format(card=card))
         card.play(*args, **kwargs)
+        self.game.check_finish()
 
     def attack(self, source, target):
+        self._check_state()
         if source is not self.hero and source not in self.battlefield:
             raise AttackException('{character} is not your character'.format(character=source))
         if target is not self.opponent.hero and target not in self.opponent.battlefield:
             raise AttackException('{character} is not your enemy character'.format(character=target))
         source.attack_(target)
+        self.game.check_finish()
 
     def end(self):
         self._check_state()
         self.game.next_turn()
 
     def concede(self):
-        self._check_state(active=False)
+        if self.game.state == Game.FINISHED:
+            raise StateException('game is already finished')
         self.game.concede(self)
+
+    def acquire(self, card_class):
+        if not self.game.debug:
+            raise StateException('not in debug mode')
+        card = self._create(card_class)
+        self.hand.append(card)
 
     def _check_state(self, active=True):
         if self.game.state != Game.PLAYING:
@@ -317,6 +345,8 @@ class Player:
         return method(**action)
 
     def draw(self, num_cards=1):
+        if self.game.debug:
+            return
         for card_num in range(num_cards):
             card = self.deck.draw()
             if isinstance(card, Card):
@@ -362,7 +392,7 @@ class Card(Object):
 
     def __init__(self, name, cost):
         super().__init__(name)
-        self.cost = cost
+        self._cost = cost
 
     def __str__(self):
         return '({name}, {cost})'.format(
@@ -370,11 +400,16 @@ class Card(Object):
             cost=self.cost,
         )
 
+    @property
+    def cost(self):
+        if self.game.debug:
+            return 0
+        return self._cost
+
     def can_play(self):
         return self.cost <= self.owner.mana
 
     def play(self):
-        self.owner._check_state()
         self._check_can_play()
         self.owner.mana -= self.cost
         self.owner.hand.remove(self)
@@ -487,7 +522,6 @@ class Character(Entity):
         return self.attack > 0 and self.attack_count < self.attack_limit
 
     def attack_(self, target):
-        self.owner._check_state()
         self._check_can_attack()
         self.owner._info('{subject} was attacking {object}.', subject=self, object=target)
         target.deal_damage(self)

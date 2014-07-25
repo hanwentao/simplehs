@@ -87,11 +87,11 @@ class TestGame(unittest.TestCase):
         alice.play(alice.hand[0])
         minion = alice.battlefield[0]
         with self.assertRaises(AttackException):
-            minion.attack_(bob.hero)
+            alice.attack(minion, bob.hero)
         alice.end()
         bob.end()
         self.assertEqual(bob.hero.health, 30)
-        minion.attack_(bob.hero)
+        alice.attack(minion, bob.hero)
         self.assertEqual(bob.hero.health, 27)
 
     def test_end(self):
