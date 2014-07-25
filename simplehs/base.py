@@ -377,6 +377,32 @@ class Player:
         self._log(logging.ERROR, message, *args, **kwargs)
 
 
+
+class Ability:
+    """A descriptor to hold ability with default value."""
+
+    def __init__(self, name, default=None):
+        self._name = '_' + name + '_'
+        self._default = default
+
+    def __get__(self, instance, owner):
+        if hasattr(instance, self._name):
+            value = getattr(instance, self._name)
+        else:
+            if type(self._default) is type:
+                value = self._default()
+            else:
+                value = self._default
+            setattr(instance, self._name, value)
+        return value
+
+    def __set__(self, instance, value):
+        setattr(instance, self._name, value)
+
+    def __delete__(self, instance):
+        delattr(instance, self._name)
+
+
 class Object:
     """An instance of game object."""
 
@@ -440,12 +466,6 @@ class MinionCard(Card):
         self.owner.battlefield.insert(position, minion)
         self.owner._info('Summoned {minion} at {position}',
                           minion=minion, position=position)
-        if 'battlecry' in minion.abilities:
-            battlecry = minion.abilities.battlecry
-            args = Dict()
-            if getattr(battlecry, 'need_target', False):
-                args.target = target
-            battlecry(**args)
 
     def _check_can_play(self):
         super()._check_can_play()
@@ -493,6 +513,10 @@ class Entity(Object):
 class Character(Entity):
     """An instance of character."""
 
+    _sleeping = Ability('sleeping', False)
+    _charge = Ability('charge', False)
+    _taunt = Ability('taunt', False)
+
     def __init__(self, name, attack, health):
         super().__init__(name)
         self.attack = attack
@@ -500,7 +524,6 @@ class Character(Entity):
         self.full_health = health
         self.attack_count = 0
         self.attack_limit = 1
-        self.abilities = Dict()
 
     def __str__(self):
         return '({name}{separator}{status}, {attack}, {health}/{full_health})'.format(
@@ -515,15 +538,28 @@ class Character(Entity):
     @property
     def status(self):
         result = ''
+        if self.sleeping:
+            result += 'z'
         if self.charge:
             result += 'C'
+        if self.taunt:
+            result += 'T'
         return result
 
     @property
+    def sleeping(self):
+        return not self.charge and self._sleeping
+
+    @property
     def charge(self):
-        return self.abilities.get('charge', False)
+        return self._charge
+
+    @property
+    def taunt(self):
+        return self._taunt
 
     def reset(self):
+        self._sleeping = False
         self.attack_count = 0
 
     def can_attack(self):
@@ -577,12 +613,13 @@ class Minion(Character):
 
     def __init__(self, name, attack, health, **kwargs):
         super().__init__(name, attack, health)
-        self.abilities = Dict(kwargs)
-        self.sleeping = not self.charge
+        self._sleeping = True
+        for name, value in kwargs.items():
+            setattr(self, '_' + name, value)
 
     def reset(self):
         super().reset()
-        self.sleeping = False
+        self._sleeping = False
 
     def can_attack(self):
         return super().can_attack() and not self.sleeping
