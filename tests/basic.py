@@ -85,3 +85,25 @@ class TestGame(unittest.TestCase):
         self.assertEqual(bob.hero.health, 30)
         minion.attack_(bob.hero)
         self.assertEqual(bob.hero.health, 27)
+
+    def test_end(self):
+        game = self.game
+        alice = game.players[0]
+        bob = game.players[1]
+        alice.replace()
+        bob.replace()
+        with self.assertRaises(StateException):
+            bob.end()
+        self.assertEqual(alice.mana, 1)
+        alice.end()
+        bob.end()
+        self.assertEqual(alice.mana, 2)
+
+    def test_concede(self):
+        game = self.game
+        alice = game.players[0]
+        bob = game.players[1]
+        alice.replace()
+        bob.replace()
+        with self.assertRaises(GameOver):
+            bob.concede()

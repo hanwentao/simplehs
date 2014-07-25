@@ -43,7 +43,7 @@ class Game:
 
     def __init__(self, agents, rng=None):
         self._date = 0
-        # Set up RNG
+        # Set up random number generator
         self.rng = rng if rng is not None else Random()
         # Set up the two players
         agent0, agent1 = agents
@@ -63,7 +63,7 @@ class Game:
         self.who.draw(3)
         self.who.opponent.draw(4)
         self.state = Game.REPLACING
-        # TODO: Get a coin
+        self.winner = None
 
     def __str__(self):
         return '({turn_num}, {who}, {player0}, {player1})'.format(
@@ -86,6 +86,7 @@ class Game:
         else:
             self.state = Game.PLAYING
             self.turn_num = 0
+            # TODO: Get a coin for the opponent
         if self.who.full_mana < 10:
             self.who.full_mana += 1
         self.who.mana = self.who.full_mana
@@ -94,8 +95,13 @@ class Game:
         self.who.draw()
         self.check()
 
+    def finish(self, winner):
+        self.state = Game.FINISHED
+        self.winner = winner
+        raise GameOver(winner)
+
     def concede(self, who):
-        pass
+        self.finish(who.opponent)
 
     def run(self):
         # Replace the starting hands
@@ -285,10 +291,18 @@ class Player:
         source.attack_(target)
 
     def end(self):
+        self._check_state()
         self.game.next_turn()
 
     def concede(self):
+        self._check_state(active=False)
         self.game.concede(self)
+
+    def _check_state(self, active=True):
+        if self.game.state != Game.PLAYING:
+            raise StateException('game is not playing')
+        if active and self.game.who is not self:
+            raise StateException('not your turn')
 
     def _create(self, *args, **kwargs):
         object = self.game.create(*args, **kwargs)
@@ -340,12 +354,6 @@ class Object:
     def __str__(self):
         return self.name
 
-    def _check_state(self):
-        if self.game.state != Game.PLAYING:
-            raise StateException('game is not playing')
-        if self.game.who is not self.owner:
-            raise StateException('not your turn')
-
 
 class Card(Object):
     """An instance of a card."""
@@ -385,7 +393,7 @@ class MinionCard(Card):
         return super().can_play() and self.owner.battlefield.size < 7
 
     def play(self, position=None, **kwargs):
-        self._check_state()
+        self.owner._check_state()
         self._check_can_play()
         super().play()
         minion = self.owner._create(Minion, self.name, self.attack, self.health, **self.abilities)
@@ -459,7 +467,7 @@ class Character(Entity):
         return self.attack > 0 and self.attack_count < self.attack_limit
 
     def attack_(self, target):
-        self._check_state()
+        self.owner._check_state()
         self._check_can_attack()
         self.owner._info('{subject} was attacking {object}.', subject=self, object=target)
         target.deal_damage(self)
