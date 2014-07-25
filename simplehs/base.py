@@ -29,6 +29,10 @@ class PlayException(GameException):
     """An exception that indicates an invalid play action."""
     pass
 
+class AttackException(GameException):
+    """An exception that indicates an invalid attack action."""
+    pass
+
 
 class Game:
     """An instance of Hearthstone game."""
@@ -249,12 +253,11 @@ class Player:
 
     def replace(self, cards=None):
         if self.game.state != Game.REPLACING:
-            raise StateException('cannot replace cards in state {state}'.format(state=self.game.state))
+            raise StateException('game is not replacing cards')
         if self.replaced:
             raise StateException('already replaced cards')
         if cards is None:
             cards = []
-        # TODO: cards should be sequence of Card.
         blanks = []
         for card in cards:
             index = self.hand.index(card)
@@ -270,22 +273,16 @@ class Player:
             self.game.next_turn()
 
     def play(self, card, *args, **kwargs):
-        if self.game.state != Game.PLAYING:
-            raise StateException('cannot play cards in state {state}'.format(state=self.game.state))
-        if self is not self.game.who:
-            raise StateException('not your turn')
-        if not card.can_play():
-            raise PlayException('cannot play {card}'.format(card=card))
+        if card not in self.hand:
+            raise PlayException('{card} is not your card'.format(card=card))
         card.play(*args, **kwargs)
-        self._info('Played {card}.', card=card)
-        # TODO: Check death
 
-    def attack(self, subject, object):
-        if not subject.can_attack():
-            self._warning('{subject} cannot attack.', subject=subject.name)
-            return
-        subject.attack_(object)
-        self.game.check()
+    def attack(self, source, target):
+        if source is not self.hero and source not in self.battlefield:
+            raise AttackException('{character} is not your character'.format(character=source))
+        if target is not self.opponent.hero and target not in self.opponent.battlefield:
+            raise AttackException('{character} is not your enemy character'.format(character=target))
+        source.attack_(target)
 
     def end(self):
         self.game.next_turn()
@@ -343,6 +340,12 @@ class Object:
     def __str__(self):
         return self.name
 
+    def _check_state(self):
+        if self.game.state != Game.PLAYING:
+            raise StateException('game is not playing')
+        if self.game.who is not self.owner:
+            raise StateException('not your turn')
+
 
 class Card(Object):
     """An instance of a card."""
@@ -364,6 +367,10 @@ class Card(Object):
         self.owner.mana -= self.cost
         self.owner.hand.remove(self)
 
+    def _check_can_play(self):
+        if self.cost > self.owner.mana:
+            raise PlayException('{mana} mana is not enough for {card}'.format(mana=self.owner.mana, card=self))
+
 
 class MinionCard(Card):
     """An instance of a minion card."""
@@ -378,6 +385,8 @@ class MinionCard(Card):
         return super().can_play() and len(self.owner.battlefield) < 7
 
     def play(self, position=None, **kwargs):
+        self._check_state()
+        self._check_can_play()
         super().play()
         minion = self.owner._create(Minion, self.name, self.attack, self.health, **self.abilities)
         minion.card = self
@@ -392,6 +401,11 @@ class MinionCard(Card):
             if getattr(battlecry, 'need_target', False):
                 args.target = target
             battlecry(**args)
+
+    def _check_can_play(self):
+        super()._check_can_play()
+        if len(self.owner.battlefield) >= 7:
+            raise PlayException('battlefield is full')
 
 
 class SpellCard(Card):
@@ -445,10 +459,18 @@ class Character(Entity):
         return self.attack > 0 and self.attack_count < self.attack_limit
 
     def attack_(self, target):
+        self._check_state()
+        self._check_can_attack()
         self.owner._info('{subject} was attacking {object}.', subject=self, object=target)
         target.deal_damage(self)
         self.deal_damage(target)
         self.attack_count += 1
+
+    def _check_can_attack(self):
+        if self.attack <= 0:
+            raise AttackException('{character} has no attack'.format(character=self))
+        if self.attack_count >= self.attack_limit:
+            raise AttackException('{character} is exhausted'.format(character=self))
 
     def deal_damage(self, target):
         if self.attack > 0:

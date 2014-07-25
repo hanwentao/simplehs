@@ -58,12 +58,30 @@ class TestGame(unittest.TestCase):
             alice.play(alice.hand[0])
         alice.replace()
         bob.replace()
-        self.assertEqual(game.state, Game.PLAYING)
+        self.assertEqual(len(alice.hand), 4)
         with self.assertRaises(PlayException):
             alice.play(alice.hand[0])
         with self.assertRaises(StateException):
             bob.play(bob.hand[0])
         alice.end()
         bob.end()
+        self.assertEqual(len(alice.hand), 5)
         alice.play(alice.hand[0])
+        self.assertEqual(len(alice.hand), 4)
         self.assertEqual(len(alice.battlefield), 1)
+        with self.assertRaises(PlayException):
+            alice.play(bob.hand[0])
+
+    def test_attack(self):
+        game = self.game
+        alice = game.players[0]
+        bob = game.players[1]
+        alice.replace()
+        bob.replace()
+        alice.end()
+        bob.end()
+        alice.play(alice.hand[0])
+        minion = alice.battlefield[0]
+        self.assertEqual(bob.hero.health, 30)
+        minion.attack_(bob.hero)
+        self.assertEqual(bob.hero.health, 27)
