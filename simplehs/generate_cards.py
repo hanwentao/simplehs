@@ -115,7 +115,7 @@ def cant_attack(text):
     if text == "can't attack":
         return ('cant_attack', True)
 
-#@matcher
+@matcher
 def spell_damage(text):
     match = re.match(r'^spell damage \+(?P<spell_damage>\d+)$', text)
     if match:

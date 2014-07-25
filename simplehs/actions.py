@@ -40,9 +40,9 @@ def signature(**kwargs):
 
 def deal_damage(amount):
     @needs_target()
-    @signature(target='target')
-    def do_deal_damage(target):
-        target.take_damage(amount)
+    @signature(target='target', is_spell='is_spell', spell_damage='spell_damage')
+    def do_deal_damage(target, is_spell=False, spell_damage=0):
+        target.take_damage(amount + int(is_spell) * spell_damage)
     return do_deal_damage
 
 def gain_mana(amount, permanent=False, empty=False, who='self'):

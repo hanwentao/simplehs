@@ -284,6 +284,10 @@ class Player:
     def minions(self):
         return self.battlefield[:]
 
+    @property
+    def spell_damage(self):
+        return sum(character.spell_damage for character in self.characters)
+
     def replace(self, cards=None):
         if self.game.state != Game.REPLACING:
             raise StateException('game is not replacing cards')
@@ -365,6 +369,10 @@ class Player:
             return self.opponent
         elif symbol == 'target':
             return kwargs['target']
+        elif symbol == 'spell_damage':
+            return self.spell_damage
+        elif symbol == 'is_spell':
+            return kwargs.get('is_spell', False)
         else:
             raise ValueError('unknown symbol: {symbol}'.format(symbol=symbol))
 
@@ -507,6 +515,7 @@ class SpellCard(Card):
         return super().can_play()
 
     def play(self, **kwargs):
+        kwargs['is_spell'] = True
         args = self.owner._expand(self.effect.signature, **kwargs)
         super().play()
         self.effect(**args)
@@ -542,6 +551,7 @@ class Character(Entity):
     _stealth = Ability('stealth', False)
     _taunt = Ability('taunt', False)
     _windfury = Ability('windfury', False)
+    _spell_damage = Ability('spell_damage', 0)
 
     def __init__(self, name, attack, health):
         super().__init__(name)
@@ -606,6 +616,10 @@ class Character(Entity):
     @property
     def windfury(self):
         return self._windfury
+
+    @property
+    def spell_damage(self):
+        return self._spell_damage
 
     @property
     def attack_limit(self):
