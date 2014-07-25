@@ -19,6 +19,9 @@ class Dict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+    def copy(self):
+        return Dict(self)
+
 
 class List(list):
     """A list which has a recursive __str__.

@@ -487,14 +487,24 @@ class MinionCard(Card):
         return super().can_play() and self.owner.battlefield.size < 7
 
     def play(self, position=None, **kwargs):
+        if 'battlecry' in self.abilities:
+            battlecry = self.abilities.get('battlecry', None)
+            abilities = self.abilities.copy()
+            del abilities.battlecry
+        else:
+            battlecry = None
+            abilities = self.abilities
         super().play()
-        minion = self.owner._create(Minion, self.name, self.attack, self.health, **self.abilities)
+        minion = self.owner._create(Minion, self.name, self.attack, self.health, **abilities)
         minion.card = self
         if position is None:
             position = self.owner.battlefield.size
         self.owner.battlefield.insert(position, minion)
         self.owner._info('Summoned {minion} at {position}',
                           minion=minion, position=position)
+        if battlecry:
+            args = self.owner._expand(battlecry.signature, **kwargs)
+            battlecry(**args)
 
     def _check_can_play(self):
         super()._check_can_play()
