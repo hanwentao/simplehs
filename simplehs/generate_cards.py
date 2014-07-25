@@ -187,12 +187,13 @@ def if_(text):
         if action is not None:
             pass  # TODO
 
-#@matcher
+@matcher
 def draw_card(text):
     match = re.match(r'^draw (a(?P<dream> dream)? card|(?P<quantity>\d+) cards)$', text)
     if match:
         if match.group('dream'):
-            return ('action', 'draw_dream_card()')
+            #return ('action', 'draw_dream_card()')
+            return  # XXX: Dream card disabled
         if match.group(1) == 'a card':
             num_cards = 1
         else:
@@ -356,7 +357,7 @@ def process(piece):
 
 def to_string(value):
     if type(value) is list:
-        return '[' + ', '.join(item for item in value) + ']'
+        return '\'[' + ', '.join(item for item in value) + ']\''
     else:
         return repr(value)
 

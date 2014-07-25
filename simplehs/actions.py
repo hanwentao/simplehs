@@ -45,6 +45,12 @@ def deal_damage(amount):
         target.take_damage(amount + int(is_spell) * spell_damage)
     return do_deal_damage
 
+def draw_card(num_cards, who='self'):
+    @signature(player=who)
+    def do_draw_card(player):
+        player.draw(num_cards)
+    return do_draw_card
+
 def gain_mana(amount, permanent=False, empty=False, who='self'):
     @signature(player=who)
     def do_gain_mana(player):

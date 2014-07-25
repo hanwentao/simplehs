@@ -61,8 +61,9 @@ class Game:
         self.who.go_first = True
         self.who.opponent.go_first = False
         # Draw the starting hands
-        self.who.draw(3)
-        self.who.opponent.draw(4)
+        if not self.debug:
+            self.who.draw(3)
+            self.who.opponent.draw(4)
         self.winner = None
         if not self.debug:
             self.state = Game.REPLACING
@@ -104,8 +105,9 @@ class Game:
         self.who._info('Turn #{turn_num} started', turn_num=self.turn_num)
         self.trigger('turn_start', self.who)
         self.check_finish()
-        self.who.draw()
-        self.check_finish()
+        if not self.debug:
+            self.who.draw()
+            self.check_finish()
         self.check()
 
     def check_finish(self):
@@ -335,6 +337,17 @@ class Player:
             raise StateException('game is already finished')
         self.game.concede(self)
 
+    def draw(self, num_cards=1):
+        for card_num in range(num_cards):
+            card = self.deck.draw()
+            if isinstance(card, Card):
+                self.hand.acquire(card)
+                self._info('Drew {card}.', card=card)
+            else:
+                fatigue = card
+                self.hero.take_damage(fatigue)
+                self._info('{hero} took {damage} fatigue damage.', hero=self.hero.name, damage=fatigue)
+
     def acquire(self, card_class):
         card = self._create(card_class)
         self.hand.append(card)
@@ -375,19 +388,6 @@ class Player:
             return kwargs.get('is_spell', False)
         else:
             raise ValueError('unknown symbol: {symbol}'.format(symbol=symbol))
-
-    def draw(self, num_cards=1):
-        if self.game.debug:
-            return
-        for card_num in range(num_cards):
-            card = self.deck.draw()
-            if isinstance(card, Card):
-                self.hand.acquire(card)
-                self._info('Drew {card}.', card=card)
-            else:
-                fatigue = card
-                self.hero.take_damage(fatigue)
-                self._info('{hero} took {damage} fatigue damage.', hero=self.hero.name, damage=fatigue)
 
     def _log(self, level, message, *args, **kwargs):
         message = self.name + ': ' + message.format(*args, **kwargs)
