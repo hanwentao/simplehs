@@ -78,6 +78,10 @@ class Game:
             player1=self.players[1],
         )
 
+    @property
+    def characters(self):
+        return self.players[0].characters + self.players[1].characters
+
     def next_turn(self):
         if self.turn_num is not None:
             # XXX: To implement as a triggered event
@@ -177,7 +181,7 @@ class Game:
         pass
 
     def check(self):
-        for character in self.all_characters():
+        for character in self.characters:
             if character.health <= 0:
                 character.destroy()
         player0, player1 = self.players
@@ -187,9 +191,6 @@ class Game:
             raise GameOver(player1)
         elif player1.hero.health <= 0:
             raise GameOver(player0)
-
-    def all_characters(self):
-        return self.players[0].all_characters() + self.players[1].all_characters()
 
 
 class Agent:
@@ -275,6 +276,14 @@ class Player:
             deck=self.deck.size,
         )
 
+    @property
+    def characters(self):
+        return [self.hero] + self.minions
+
+    @property
+    def minions(self):
+        return self.battlefield[:]
+
     def replace(self, cards=None):
         if self.game.state != Game.REPLACING:
             raise StateException('game is not replacing cards')
@@ -356,9 +365,6 @@ class Player:
                 fatigue = card
                 self.hero.take_damage(fatigue)
                 self._info('{hero} took {damage} fatigue damage.', hero=self.hero.name, damage=fatigue)
-
-    def all_characters(self):
-        return [self.hero] + self.battlefield
 
     def _log(self, level, message, *args, **kwargs):
         message = self.name + ': ' + message.format(*args, **kwargs)
@@ -566,17 +572,19 @@ class Character(Entity):
         return self.attack > 0 and self.attack_count < self.attack_limit
 
     def attack_(self, target):
-        self._check_can_attack()
+        self._check_can_attack(target)
         self.owner._info('{subject} was attacking {object}.', subject=self, object=target)
         target.deal_damage(self)
         self.deal_damage(target)
         self.attack_count += 1
 
-    def _check_can_attack(self):
+    def _check_can_attack(self, target):
         if self.attack <= 0:
             raise AttackException('{character} has no attack'.format(character=self))
         if self.attack_count >= self.attack_limit:
             raise AttackException('{character} is exhausted'.format(character=self))
+        if any(character.taunt for character in target.owner.characters) and not target.taunt:
+            raise AttackException('{character} is not taunt, but taunt exists')
 
     def deal_damage(self, target):
         if self.attack > 0:
@@ -624,8 +632,8 @@ class Minion(Character):
     def can_attack(self):
         return super().can_attack() and not self.sleeping
 
-    def _check_can_attack(self):
-        super()._check_can_attack()
+    def _check_can_attack(self, target):
+        super()._check_can_attack(target)
         if self.sleeping:
             raise AttackException('{minion} is sleeping'.format(minion=self))
 

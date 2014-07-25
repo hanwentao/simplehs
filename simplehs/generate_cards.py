@@ -85,7 +85,7 @@ def matcher(func):
     MATCHERS.append(func)
     return func
 
-#@matcher
+@matcher
 def taunt(text):
     if text == 'taunt':
         return ('taunt', True)
