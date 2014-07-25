@@ -593,6 +593,8 @@ class Character(Entity):
     def take_damage(self, damage):
         self.owner._info('{subject} took {damage} damage.', subject=self, damage=damage)
         self.health -= damage
+        if self.health <= 0:
+            self.destroy()
 
     def destroy(self):
         self.owner._info('{subject} destroyed.', subject=self)

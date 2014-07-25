@@ -83,16 +83,22 @@ class TestBasic(unittest.TestCase):
         alice.replace()
         bob.replace()
         alice.end()
+        bob.play(bob.hand[-2])
+        bob.play(bob.hand[0])
+        crocolisk = bob.battlefield[0]
         bob.end()
         alice.play(alice.hand[0])
-        minion = alice.battlefield[0]
+        raptor = alice.battlefield[0]
         with self.assertRaises(AttackException):
-            alice.attack(minion, bob.hero)
+            alice.attack(raptor, bob.hero)
         alice.end()
+        self.assertEqual(alice.hero.health, 30)
+        bob.attack(crocolisk, alice.hero)
+        self.assertEqual(alice.hero.health, 28)
         bob.end()
-        self.assertEqual(bob.hero.health, 30)
-        alice.attack(minion, bob.hero)
-        self.assertEqual(bob.hero.health, 27)
+        alice.attack(raptor, crocolisk)
+        self.assertEqual(alice.battlefield.size, 0)
+        self.assertEqual(bob.battlefield.size, 0)
 
     def test_end(self):
         game = self.game
