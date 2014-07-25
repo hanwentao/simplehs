@@ -562,6 +562,7 @@ class Character(Entity):
     _taunt = Ability('taunt', False)
     _windfury = Ability('windfury', False)
     _spell_damage = Ability('spell_damage', 0)
+    _deathrattle = Ability('deathrattle', None)
 
     def __init__(self, name, attack, health):
         super().__init__(name)
@@ -597,6 +598,10 @@ class Character(Entity):
             result += 'T'
         if self.windfury:
             result += 'W'
+        if self.spell_damage:
+            result += str(self.spell_damage)
+        if self.deathrattle:
+            result += '~'
         return result
 
     @property
@@ -626,6 +631,10 @@ class Character(Entity):
     @property
     def windfury(self):
         return self._windfury
+
+    @property
+    def deathrattle(self):
+        return self._deathrattle
 
     @property
     def spell_damage(self):
@@ -680,6 +689,10 @@ class Character(Entity):
 
     def destroy(self):
         self.owner._info('{subject} destroyed.', subject=self)
+        deathrattle = self.deathrattle
+        if deathrattle:
+            args = self.owner._expand(deathrattle.signature)
+            deathrattle(**args)
 
 
 class Hero(Character):

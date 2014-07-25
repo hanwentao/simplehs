@@ -135,12 +135,12 @@ def battlecry(text):
         if result is not None:
             return ('battlecry', result[1])
 
-#@matcher
+@matcher
 def deathrattle(text):
     if text.startswith('deathrattle: '):
         result = process(text[len('deathrattle: '):])
         if result is not None:
-            return ('deathrattle', result)
+            return ('deathrattle', result[1])
 
 #@matcher
 def enrage(text):
