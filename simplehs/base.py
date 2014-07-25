@@ -25,6 +25,10 @@ class StateException(GameException):
     """An exception that indicates an invalid state for some action."""
     pass
 
+class PlayException(GameException):
+    """An exception that indicates an invalid play action."""
+    pass
+
 
 class Game:
     """An instance of Hearthstone game."""
@@ -64,6 +68,30 @@ class Game:
             player0=self.players[0],
             player1=self.players[1],
         )
+
+    def next_turn(self):
+        if self.turn_num is not None:
+            # XXX: To implement as a triggered event
+            self.who.hero.reset()
+            for minion in self.who.battlefield:
+                minion.reset()
+            self.trigger('turn_end', self.who)
+            self.who._info('Turn #{turn_num} ended', turn_num=self.turn_num)
+            self.who = self.who.opponent
+            self.turn_num += 1
+        else:
+            self.state = Game.PLAYING
+            self.turn_num = 0
+        if self.who.full_mana < 10:
+            self.who.full_mana += 1
+        self.who.mana = self.who.full_mana
+        self.who._info('Turn #{turn_num} started', turn_num=self.turn_num)
+        self.trigger('turn_start', self.who)
+        self.who.draw()
+        self.check()
+
+    def concede(self, who):
+        pass
 
     def run(self):
         # Replace the starting hands
@@ -200,10 +228,10 @@ class Player:
         self.mana = 0
         self.full_mana = 0
         hero_class = get_class(agent.hero)
-        self.hero = self.create(hero_class)
+        self.hero = self._create(hero_class)
         for card in agent.deck:
             card_class = get_class(card)
-            card = self.create(card_class)
+            card = self._create(card_class)
             self.deck.append(card)
         self.game.rng.shuffle(self.deck)
 
@@ -218,16 +246,6 @@ class Player:
             hand=self.hand,
             deck=len(self.deck),
         )
-
-    def create(self, *args, **kwargs):
-        object = self.game.create(*args, **kwargs)
-        object.owner = self
-        return object
-
-    def do_action(self, action):
-        method = getattr(self, action.name)
-        del action.name
-        return method(**action)
 
     def replace(self, cards=None):
         if self.game.state != Game.REPLACING:
@@ -249,20 +267,17 @@ class Player:
             self.hand[index] = card
         self.replaced = True
         if self.opponent.replaced:
-            self.game.state = Game.PLAYING
+            self.game.next_turn()
 
-    def play(self, card, target=None, position=None, choice=None):
-        if not card.can_play:
-            self._warning('Cannot play ({card}).', card=card.name)
-        args = Dict()
-        if isinstance(card, MinionCard):
-            args.position = position
-            if 'battlecry' in card.abilities:
-                battlecry = card.abilities.battlecry
-                if getattr(battlecry, 'need_target', False):
-                    args.target = target
+    def play(self, card, *args, **kwargs):
+        if self.game.state != Game.PLAYING:
+            raise StateException('cannot play cards in state {state}'.format(state=self.game.state))
+        if self is not self.game.who:
+            raise StateException('not your turn')
+        if not card.can_play():
+            raise PlayException('cannot play {card}'.format(card=card))
+        card.play(*args, **kwargs)
         self._info('Played {card}.', card=card)
-        card.play(**args)
         # TODO: Check death
 
     def attack(self, subject, object):
@@ -273,10 +288,20 @@ class Player:
         self.game.check()
 
     def end(self):
-        return True
+        self.game.next_turn()
 
     def concede(self):
-        raise GameOver(self.opponent)
+        self.game.concede(self)
+
+    def _create(self, *args, **kwargs):
+        object = self.game.create(*args, **kwargs)
+        object.owner = self
+        return object
+
+    def _do_action(self, action):
+        method = getattr(self, action.name)
+        del action.name
+        return method(**action)
 
     def draw(self, num_cards=1):
         for card_num in range(num_cards):
@@ -352,9 +377,9 @@ class MinionCard(Card):
     def can_play(self):
         return super().can_play() and len(self.owner.battlefield) < 7
 
-    def play(self, position, target=None):
+    def play(self, position=None, **kwargs):
         super().play()
-        minion = self.owner.create(Minion, self.name, self.attack, self.health, **self.abilities)
+        minion = self.owner._create(Minion, self.name, self.attack, self.health, **self.abilities)
         minion.card = self
         if position is None:
             position = len(self.owner.battlefield)

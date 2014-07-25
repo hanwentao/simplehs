@@ -13,12 +13,12 @@ class TestGame(unittest.TestCase):
         alice_agent = Dict(
             name='Alice',
             hero=Innkeeper,
-            deck=[Wisp] * 30,
+            deck=[BloodfenRaptor] * 30,
         )
         bob_agent = Dict(
             name='Bob',
             hero=Innkeeper,
-            deck=[Wisp] * 30,
+            deck=[RiverCrocolisk] * 30,
         )
         agents = (alice_agent, bob_agent)
         self.game = Game(agents)
@@ -49,3 +49,21 @@ class TestGame(unittest.TestCase):
         self.assertEqual(game.state, Game.PLAYING)
         with self.assertRaises(StateException):
             bob.replace()
+
+    def test_play(self):
+        game = self.game
+        alice = game.players[0]
+        bob = game.players[1]
+        with self.assertRaises(StateException):
+            alice.play(alice.hand[0])
+        alice.replace()
+        bob.replace()
+        self.assertEqual(game.state, Game.PLAYING)
+        with self.assertRaises(PlayException):
+            alice.play(alice.hand[0])
+        with self.assertRaises(StateException):
+            bob.play(bob.hand[0])
+        alice.end()
+        bob.end()
+        alice.play(alice.hand[0])
+        self.assertEqual(len(alice.battlefield), 1)
