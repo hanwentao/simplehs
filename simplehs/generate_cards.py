@@ -240,7 +240,6 @@ def deal_damage(text):
         split = match.group('split')
         if target is None:
             return ('action', 'deal_damage({damage})'.format(**locals()))
-        return  # XXX
         parts = text.split(' and ')
         if len(parts) == 1:
             if not split:

@@ -182,7 +182,7 @@ class Game:
     def trigger(self, timing):
         for character in self.characters:
             if character.trigger:
-                args = character.owner._expand(character.trigger.signature)
+                args = character._expand(character.trigger.signature)
                 character.trigger(timing,
                                   filter_game=self,
                                   filter_character=character,
@@ -382,16 +382,20 @@ class Player:
         return args
 
     def _expand_symbol(self, symbol, **kwargs):
-        if symbol == 'self':
+        if symbol == 'game':
+            return self.game
+        elif symbol == 'self':
             return self
         elif symbol == 'enemy':
             return self.opponent
-        elif symbol == 'target':
-            return kwargs['target']
+        elif symbol == 'enemy characters':
+            return self.opponent.characters
         elif symbol == 'spell_damage':
             return self.spell_damage
         elif symbol == 'is_spell':
             return kwargs.get('is_spell', False)
+        elif symbol in kwargs:
+            return kwargs[symbol]
         else:
             raise ValueError('unknown symbol: {symbol}'.format(symbol=symbol))
 
@@ -509,7 +513,7 @@ class MinionCard(Card):
         self.owner._info('Summoned {minion} at {position}',
                           minion=minion, position=position)
         if battlecry:
-            args = self.owner._expand(battlecry.signature, **kwargs)
+            args = minion._expand(battlecry.signature, **kwargs)
             battlecry(**args)
 
     def _check_can_play(self):
@@ -677,16 +681,6 @@ class Character(Entity):
         target.deal_damage(self)
         self.deal_damage(target)
 
-    def _check_can_attack(self, target):
-        if self.attack <= 0:
-            raise AttackException('{character} has no attack'.format(character=self))
-        if self.attack_count >= self.attack_limit:
-            raise AttackException('{character} is exhausted'.format(character=self))
-        if target.stealth:
-            raise AttackException('{target} is stealth'.format(target=target))
-        if any(character.taunt for character in target.owner.characters) and not target.taunt:
-            raise AttackException('{target} is not taunt, but taunt exists'.format(target=target))
-
     def deal_damage(self, target):
         if self.attack > 0:
             target.take_damage(self.attack)
@@ -706,6 +700,43 @@ class Character(Entity):
         if deathrattle:
             args = self.owner._expand(deathrattle.signature)
             deathrattle(**args)
+
+    def _check_can_attack(self, target):
+        if self.attack <= 0:
+            raise AttackException('{character} has no attack'.format(character=self))
+        if self.attack_count >= self.attack_limit:
+            raise AttackException('{character} is exhausted'.format(character=self))
+        if target.stealth:
+            raise AttackException('{target} is stealth'.format(target=target))
+        if any(character.taunt for character in target.owner.characters) and not target.taunt:
+            raise AttackException('{target} is not taunt, but taunt exists'.format(target=target))
+
+    def _expand(self, signature, **kwargs):
+        args = Dict()
+        for name, symbol in signature.items():
+            value = self._expand_symbol(symbol, **kwargs)
+            args[name] = value
+        return args
+
+    def _expand_symbol(self, symbol, **kwargs):
+        if symbol == 'game':
+            return self.game
+        elif symbol == 'himself':
+            return self
+        elif symbol == 'self':
+            return self.owner
+        elif symbol == 'the enemy hero':
+            return self.owner.opponent.hero
+        elif symbol == 'enemy characters':
+            return self.owner.opponent.characters
+        elif symbol == 'spell_damage':
+            return self.owner.spell_damage
+        elif symbol == 'is_spell':
+            return kwargs.get('is_spell', False)
+        elif symbol in kwargs:
+            return kwargs[symbol]
+        else:
+            raise ValueError('unknown symbol: {symbol}'.format(symbol=symbol))
 
 
 class Hero(Character):

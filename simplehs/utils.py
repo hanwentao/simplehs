@@ -42,13 +42,26 @@ class List(list):
 class Random:
     """A dummy pseudo-random generator like random.Random."""
 
-    def randrange(self, start_or_stop, stop=None, step=1):
-        if stop is None:
-            start = 0
-            stop = start_or_stop
-        else:
-            start = start_or_stop
-        return start
+    def randrange(self, stop):
+        return 0
+
+    def choice(self, iterable):
+        index = self.randrange(len(iterable))
+        return iterable[index]
+
+    def shuffle(self, iterable):
+        return iterable
+
+
+class MockRandom(Random):
+    """A mock pseudo-random generator like random.Random."""
+
+    def __init__(self, sequence):
+        self.sequence = sequence
+
+    def randrange(self, stop):
+        number = self.sequence.pop(0)
+        return number % stop
 
     def choice(self, iterable):
         index = self.randrange(len(iterable))

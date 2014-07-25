@@ -31,18 +31,39 @@ def signature(**kwargs):
     def wrapper(action):
         if not isinstance(action, ClosureWrapper):
             action = ClosureWrapper(action)
-        action.signature = Dict(kwargs)
+        if not action.signature:
+            action.signature = Dict()
+        action.signature.update(kwargs)
         return action
     return wrapper
+
+def add_target(target):
+    return signature(target=target)
 
 
 # Actions
 
-def deal_damage(amount):
-    @needs_target()
-    @signature(target='target', is_spell='is_spell', spell_damage='spell_damage')
-    def do_deal_damage(target, is_spell=False, spell_damage=0):
-        target.take_damage(amount + int(is_spell) * spell_damage)
+def deal_damage(amount, target=None, split=False):
+    @signature(target='target', is_spell='is_spell', spell_damage='spell_damage', game='game')
+    def do_deal_damage(target, is_spell=False, spell_damage=0, game=None):
+        if not isinstance(target, list):
+            target = [target]
+        else:
+            target = target[:]
+        damage = amount + int(is_spell) * spell_damage
+        if not split:
+            for character in target:
+                character.take_damage(damage)
+        else:
+            for missile_num in range(damage):
+                character = game.rng.choice(target)
+                character.take_damage(1)
+                if character.health <= 0:
+                    target.remove(character)
+    if target is None:
+        do_deal_damage = needs_target()(do_deal_damage)
+    else:
+        do_deal_damage = add_target(target)(do_deal_damage)
     return do_deal_damage
 
 def draw_card(num_cards, who='self'):
