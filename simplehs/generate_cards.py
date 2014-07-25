@@ -100,7 +100,7 @@ def windfury(text):
     if text == 'windfury':
         return ('windfury', True)
 
-#@matcher
+@matcher
 def divine_shield(text):
     if text == 'divine shield':
         return ('divine_shield', True)

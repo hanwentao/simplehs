@@ -519,6 +519,7 @@ class Character(Entity):
 
     _sleeping = Ability('sleeping', False)
     _charge = Ability('charge', False)
+    _divine_shield = Ability('divine_shield', False)
     _stealth = Ability('stealth', False)
     _taunt = Ability('taunt', False)
     _windfury = Ability('windfury', False)
@@ -547,6 +548,8 @@ class Character(Entity):
             result += 'z'
         if self.charge:
             result += 'C'
+        if self.divine_shield:
+            result += 'D'
         if self.stealth:
             result += 'S'
         if self._taunt:  # For Stealth
@@ -562,6 +565,10 @@ class Character(Entity):
     @property
     def charge(self):
         return self._charge
+
+    @property
+    def divine_shield(self):
+        return self._divine_shield
 
     @property
     def stealth(self):
@@ -610,7 +617,10 @@ class Character(Entity):
 
     def take_damage(self, damage):
         self.owner._info('{subject} took {damage} damage.', subject=self, damage=damage)
-        self.health -= damage
+        if self.divine_shield:
+            self._divine_shield = False
+        else:
+            self.health -= damage
         if self.health <= 0:
             self.destroy()
 
