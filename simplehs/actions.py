@@ -61,3 +61,23 @@ def gain_mana(amount, permanent=False, empty=False, who='self'):
             if not empty:
                 player.mana = min(player.mana + amount, player.full_mana)
     return do_gain_mana
+
+def trigger(timing, filter, action):
+    @signature(**action.signature)
+    def do_trigger(real_timing, **kwargs):
+        if real_timing != timing:
+            return
+        game = kwargs['filter_game']
+        character = kwargs['filter_character']
+        del kwargs['filter_game']
+        del kwargs['filter_character']
+        if not filter(game, character):
+            return
+        return action(**kwargs)
+    return do_trigger
+
+
+# Filters
+
+def is_owner(game, character):
+    return game.who is character.owner

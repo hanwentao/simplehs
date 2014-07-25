@@ -165,17 +165,32 @@ def choose_one(text):
     if text.startswith('choose one - '):
         pass  # TODO
 
-#@matcher
+@matcher
 def trigger(text):
     match = re.match(r'^(?P<timing>at|when(ever)?|after) (?P<condition>.*?), (?P<action>.*)$', text)
     if match:
         timing = match.group('timing')
         timing = 'when' if timing == 'whenever' else timing  # XXX: when == before?
+        if timing != 'at':  # XXX: 'at' this time
+            return
         condition = match.group('condition')
+        if condition == 'the start of your turn':
+            timing += ' turn_start'
+            filter = 'is_owner'
+        elif condition == 'the end of your turn':
+            timing += ' turn_end'
+            filter = 'is_owner'
+        else:
+            return
         action = match.group('action')
         action = process(action)
         if action is not None:
-            return ('trigger', (timing, condition, action))
+            code = 'trigger("{timing}", {filter}, {action})'.format(
+                timing=timing,
+                filter=filter,
+                action=action[1],
+            )
+            return ('trigger', code)
 
 #@matcher
 def if_(text):

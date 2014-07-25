@@ -90,7 +90,7 @@ class Game:
             for minion in self.who.battlefield:
                 minion.reset()
             self.who._info('Turn #{turn_num} ended', turn_num=self.turn_num)
-            self.trigger('turn_end', self.who)
+            self.trigger('at turn_end')
             self.check_finish()
             self.who = self.who.opponent
             self.turn_num += 1
@@ -103,7 +103,7 @@ class Game:
             self.who.full_mana += 1
         self.who.mana = self.who.full_mana
         self.who._info('Turn #{turn_num} started', turn_num=self.turn_num)
-        self.trigger('turn_start', self.who)
+        self.trigger('at turn_start')
         self.check_finish()
         if not self.debug:
             self.who.draw()
@@ -179,8 +179,14 @@ class Game:
         object.dob = self._fetch_and_add_date()
         return object
 
-    def trigger(self, event, *args, **kwargs):
-        pass
+    def trigger(self, timing):
+        for character in self.characters:
+            if character.trigger:
+                args = character.owner._expand(character.trigger.signature)
+                character.trigger(timing,
+                                  filter_game=self,
+                                  filter_character=character,
+                                  **args)
 
     def check(self):
         for character in self.characters:
@@ -563,6 +569,7 @@ class Character(Entity):
     _windfury = Ability('windfury', False)
     _spell_damage = Ability('spell_damage', 0)
     _deathrattle = Ability('deathrattle', None)
+    _trigger = Ability('trigger', None)
 
     def __init__(self, name, attack, health):
         super().__init__(name)
@@ -602,6 +609,8 @@ class Character(Entity):
             result += str(self.spell_damage)
         if self.deathrattle:
             result += '~'
+        if self.trigger:
+            result += '*'
         return result
 
     @property
@@ -633,12 +642,16 @@ class Character(Entity):
         return self._windfury
 
     @property
+    def spell_damage(self):
+        return self._spell_damage
+
+    @property
     def deathrattle(self):
         return self._deathrattle
 
     @property
-    def spell_damage(self):
-        return self._spell_damage
+    def trigger(self):
+        return self._trigger
 
     @property
     def attack_limit(self):
