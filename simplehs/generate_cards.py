@@ -95,7 +95,7 @@ def charge(text):
     if text == 'charge':
         return ('charge', True)
 
-#@matcher
+@matcher
 def windfury(text):
     if text == 'windfury':
         return ('windfury', True)

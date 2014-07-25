@@ -521,6 +521,7 @@ class Character(Entity):
     _charge = Ability('charge', False)
     _stealth = Ability('stealth', False)
     _taunt = Ability('taunt', False)
+    _windfury = Ability('windfury', False)
 
     def __init__(self, name, attack, health):
         super().__init__(name)
@@ -528,7 +529,6 @@ class Character(Entity):
         self.health = health
         self.full_health = health
         self.attack_count = 0
-        self.attack_limit = 1
 
     def __str__(self):
         return '({name}{separator}{status}, {attack}, {health}/{full_health})'.format(
@@ -551,6 +551,8 @@ class Character(Entity):
             result += 'S'
         if self._taunt:  # For Stealth
             result += 'T'
+        if self.windfury:
+            result += 'W'
         return result
 
     @property
@@ -568,6 +570,14 @@ class Character(Entity):
     @property
     def taunt(self):
         return not self.stealth and self._taunt
+
+    @property
+    def windfury(self):
+        return self._windfury
+
+    @property
+    def attack_limit(self):
+        return 2 if self.windfury else 1
 
     def reset(self):
         self._sleeping = False
