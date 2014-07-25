@@ -17,8 +17,21 @@ class GameOver(Exception):
         self.winner = winner
 
 
+class GameException(Exception):
+    """An exception that indicates something wrong in the game."""
+    pass
+
+class StateException(GameException):
+    """An exception that indicates an invalid state for some action."""
+    pass
+
+
 class Game:
     """An instance of Hearthstone game."""
+
+    REPLACING = '<replacing>'
+    PLAYING = '<playing>'
+    FINISHED = '<finished>'
 
     def __init__(self, agents, rng=None):
         self._date = 0
@@ -41,6 +54,7 @@ class Game:
         # Draw the starting hands
         self.who.draw(3)
         self.who.opponent.draw(4)
+        self.state = Game.REPLACING
         # TODO: Get a coin
 
     def __str__(self):
@@ -175,6 +189,7 @@ class Player:
         self.agent = agent
         self.name = agent.name
         self.go_first = None
+        self.replaced = False
         self.deck = Deck()
         self.deck.owner = self
         self.hand = Hand()
@@ -215,16 +230,26 @@ class Player:
         return method(**action)
 
     def replace(self, cards=None):
+        if self.game.state != Game.REPLACING:
+            raise StateException('cannot replace cards in state {state}'.format(state=self.game.state))
+        if self.replaced:
+            raise StateException('already replaced cards')
         if cards is None:
             cards = []
-        card_index_list = self.get_card_index_list(cards)
-        for card_index in card_index_list:
-            card = self.hand[card_index]
-            index = self.game.rng.randrange(len(self.deck) + 1)
-            self.deck.insert(index, card)
-        for card_index in card_index_list:
+        # TODO: cards should be sequence of Card.
+        blanks = []
+        for card in cards:
+            index = self.hand.index(card)
+            blanks.append(index)
+            new_index = self.game.rng.randrange(len(self.deck) + 1)
+            self.deck.insert(new_index, card)
+        blanks.sort()
+        for index in blanks:
             card = self.deck.pop(0)
-            self.hand[card_index] = card
+            self.hand[index] = card
+        self.replaced = True
+        if self.opponent.replaced:
+            self.game.state = Game.PLAYING
 
     def play(self, card, target=None, position=None, choice=None):
         if not card.can_play:
@@ -263,10 +288,6 @@ class Player:
                 fatigue = card
                 self.hero.take_damage(fatigue)
                 self._info('{hero} took {damage} fatigue damage.', hero=self.hero.name, damage=fatigue)
-
-    def get_card_index_list(self, cards):
-        # TODO: More cases
-        return cards
 
     def all_characters(self):
         return [self.hero] + self.battlefield
