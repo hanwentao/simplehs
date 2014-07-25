@@ -7,7 +7,7 @@ from simplehs.heroes import *
 from simplehs.cards import *
 
 
-class TestGame(unittest.TestCase):
+class TestBasic(unittest.TestCase):
 
     def setUp(self):
         alice_agent = Dict(
