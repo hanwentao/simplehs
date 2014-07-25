@@ -525,6 +525,11 @@ class Minion(Character):
     def can_attack(self):
         return super().can_attack() and not self.sleeping
 
+    def _check_can_attack(self):
+        super()._check_can_attack()
+        if self.sleeping:
+            raise AttackException('{minion} is sleeping'.format(minion=self))
+
     def destroy(self):
         self.owner.battlefield.remove(self)
         super().destroy()
