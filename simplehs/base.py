@@ -95,9 +95,9 @@ class Game:
             self.turn_num += 1
         else:
             self.turn_num = 0
-            from .cards.special import TheCoin
-            coin = self.who.opponent._create(TheCoin)
-            self.who.opponent.hand.acquire(coin)
+            if not self.debug:
+                from .cards.special import TheCoin
+                self.who.opponent.acquire(TheCoin)
         if self.who.full_mana < 10:
             self.who.full_mana += 1
         self.who.mana = self.who.full_mana
@@ -332,8 +332,6 @@ class Player:
         self.game.concede(self)
 
     def acquire(self, card_class):
-        if not self.game.debug:
-            raise StateException('not in debug mode')
         card = self._create(card_class)
         self.hand.append(card)
 
