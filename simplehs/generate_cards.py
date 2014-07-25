@@ -105,7 +105,7 @@ def divine_shield(text):
     if text == 'divine shield':
         return ('divine_shield', True)
 
-#@matcher
+@matcher
 def stealth(text):
     if text == 'stealth':
         return ('stealth', True)

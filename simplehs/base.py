@@ -519,6 +519,7 @@ class Character(Entity):
 
     _sleeping = Ability('sleeping', False)
     _charge = Ability('charge', False)
+    _stealth = Ability('stealth', False)
     _taunt = Ability('taunt', False)
 
     def __init__(self, name, attack, health):
@@ -546,7 +547,9 @@ class Character(Entity):
             result += 'z'
         if self.charge:
             result += 'C'
-        if self.taunt:
+        if self.stealth:
+            result += 'S'
+        if self._taunt:  # For Stealth
             result += 'T'
         return result
 
@@ -559,8 +562,12 @@ class Character(Entity):
         return self._charge
 
     @property
+    def stealth(self):
+        return self._stealth
+
+    @property
     def taunt(self):
-        return self._taunt
+        return not self.stealth and self._taunt
 
     def reset(self):
         self._sleeping = False
@@ -572,17 +579,20 @@ class Character(Entity):
     def attack_(self, target):
         self._check_can_attack(target)
         self.owner._info('{subject} was attacking {object}.', subject=self, object=target)
+        self.attack_count += 1
+        self._stealth = False
         target.deal_damage(self)
         self.deal_damage(target)
-        self.attack_count += 1
 
     def _check_can_attack(self, target):
         if self.attack <= 0:
             raise AttackException('{character} has no attack'.format(character=self))
         if self.attack_count >= self.attack_limit:
             raise AttackException('{character} is exhausted'.format(character=self))
+        if target.stealth:
+            raise AttackException('{target} is stealth'.format(target=target))
         if any(character.taunt for character in target.owner.characters) and not target.taunt:
-            raise AttackException('{character} is not taunt, but taunt exists')
+            raise AttackException('{target} is not taunt, but taunt exists'.format(target=target))
 
     def deal_damage(self, target):
         if self.attack > 0:
