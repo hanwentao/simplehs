@@ -110,7 +110,7 @@ def stealth(text):
     if text == 'stealth':
         return ('stealth', True)
 
-#@matcher
+@matcher
 def cant_attack(text):
     if text == "can't attack":
         return ('cant_attack', True)

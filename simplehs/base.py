@@ -518,6 +518,7 @@ class Character(Entity):
     """An instance of character."""
 
     _sleeping = Ability('sleeping', False)
+    _cant_attack = Ability('cant_attack', False)
     _charge = Ability('charge', False)
     _divine_shield = Ability('divine_shield', False)
     _stealth = Ability('stealth', False)
@@ -546,6 +547,8 @@ class Character(Entity):
         result = ''
         if self.sleeping:
             result += 'z'
+        if self.cant_attack:
+            result += 'a'
         if self.charge:
             result += 'C'
         if self.divine_shield:
@@ -561,6 +564,10 @@ class Character(Entity):
     @property
     def sleeping(self):
         return not self.charge and self._sleeping
+
+    @property
+    def cant_attack(self):
+        return self._cant_attack
 
     @property
     def charge(self):
@@ -584,7 +591,12 @@ class Character(Entity):
 
     @property
     def attack_limit(self):
-        return 2 if self.windfury else 1
+        if self.cant_attack:
+            return 0
+        elif self.windfury:
+            return 2
+        else:
+            return 1
 
     def reset(self):
         self._sleeping = False
