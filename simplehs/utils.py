@@ -31,6 +31,10 @@ class List(list):
     def __str__(self):
         return '[' + ', '.join(str(item) for item in self) + ']'
 
+    @property
+    def size(self):
+        return len(self)
+
 
 class Random:
     """A dummy pseudo-random generator like random.Random."""

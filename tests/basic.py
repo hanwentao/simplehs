@@ -31,12 +31,12 @@ class TestGame(unittest.TestCase):
         self.assertIsNone(game.turn_num)
         self.assertTrue(alice.go_first)
         self.assertFalse(bob.go_first)
-        self.assertEqual(len(alice.hand), 3)
-        self.assertEqual(len(bob.hand), 4)
-        self.assertEqual(len(alice.deck), 27)
-        self.assertEqual(len(bob.deck), 26)
-        self.assertEqual(len(alice.battlefield), 0)
-        self.assertEqual(len(bob.battlefield), 0)
+        self.assertEqual(alice.hand.size, 3)
+        self.assertEqual(bob.hand.size, 4)
+        self.assertEqual(alice.deck.size, 27)
+        self.assertEqual(bob.deck.size, 26)
+        self.assertEqual(alice.battlefield.size, 0)
+        self.assertEqual(bob.battlefield.size, 0)
 
     def test_replace(self):
         game = self.game
@@ -58,17 +58,17 @@ class TestGame(unittest.TestCase):
             alice.play(alice.hand[0])
         alice.replace()
         bob.replace()
-        self.assertEqual(len(alice.hand), 4)
+        self.assertEqual(alice.hand.size, 4)
         with self.assertRaises(PlayException):
             alice.play(alice.hand[0])
         with self.assertRaises(StateException):
             bob.play(bob.hand[0])
         alice.end()
         bob.end()
-        self.assertEqual(len(alice.hand), 5)
+        self.assertEqual(alice.hand.size, 5)
         alice.play(alice.hand[0])
-        self.assertEqual(len(alice.hand), 4)
-        self.assertEqual(len(alice.battlefield), 1)
+        self.assertEqual(alice.hand.size, 4)
+        self.assertEqual(alice.battlefield.size, 1)
         with self.assertRaises(PlayException):
             alice.play(bob.hand[0])
 

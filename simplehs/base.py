@@ -248,7 +248,7 @@ class Player:
             hero=self.hero,
             battlefield=self.battlefield,
             hand=self.hand,
-            deck=len(self.deck),
+            deck=self.deck.size,
         )
 
     def replace(self, cards=None):
@@ -262,7 +262,7 @@ class Player:
         for card in cards:
             index = self.hand.index(card)
             blanks.append(index)
-            new_index = self.game.rng.randrange(len(self.deck) + 1)
+            new_index = self.game.rng.randrange(self.deck.size + 1)
             self.deck.insert(new_index, card)
         blanks.sort()
         for index in blanks:
@@ -382,7 +382,7 @@ class MinionCard(Card):
         self.abilities = Dict(kwargs)
 
     def can_play(self):
-        return super().can_play() and len(self.owner.battlefield) < 7
+        return super().can_play() and self.owner.battlefield.size < 7
 
     def play(self, position=None, **kwargs):
         self._check_state()
@@ -391,7 +391,7 @@ class MinionCard(Card):
         minion = self.owner._create(Minion, self.name, self.attack, self.health, **self.abilities)
         minion.card = self
         if position is None:
-            position = len(self.owner.battlefield)
+            position = self.owner.battlefield.size
         self.owner.battlefield.insert(position, minion)
         self.owner._info('Summoned {minion} at {position}',
                           minion=minion, position=position)
@@ -404,7 +404,7 @@ class MinionCard(Card):
 
     def _check_can_play(self):
         super()._check_can_play()
-        if len(self.owner.battlefield) >= 7:
+        if self.owner.battlefield.size >= 7:
             raise PlayException('battlefield is full')
 
 
