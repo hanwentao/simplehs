@@ -27,7 +27,6 @@ def make_minion_card(name, cost, attack, health, **kwargs):
     abilities = ', ' + join_args(kwargs)
     class_definition = _MINION_CARD_CLASS_TEMPLATE.format(**locals())
     namespace = dict(globals())
-    print(class_definition)
     exec(class_definition, namespace)
     class_ = namespace[class_name]
     return class_

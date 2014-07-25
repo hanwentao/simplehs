@@ -44,11 +44,11 @@ class Game:
         # TODO: Get a coin
 
     def __str__(self):
-        return '({turn_num}, {who}\n {player0},\n {player1})'.format(
+        return '({turn_num}, {who}, {player0}, {player1})'.format(
             turn_num=self.turn_num,
             who=self.who.name,
-            player0=str(self.players[0]),
-            player1=str(self.players[1]),
+            player0=self.players[0],
+            player1=self.players[1],
         )
 
     def run(self):
@@ -193,16 +193,15 @@ class Player:
         self.game.rng.shuffle(self.deck)
 
     def __str__(self):
-        return '({current}{name}{go_first}, {mana}/{full_mana}, {hero}, {battlefield}, {hand}, {deck})'.format(
+        return '({name}{go_first}, {mana}/{full_mana}, {hero}, {battlefield}, {hand}, {deck})'.format(
             name=self.name,
             go_first='+' if self.go_first else '',
-            current='*' if self.game.who is self else '',
             mana=self.mana,
             full_mana=self.full_mana,
             hero=self.hero,
-            battlefield=str(self.battlefield),
-            hand=str(self.hand),
-            deck=str(self.deck),
+            battlefield=self.battlefield,
+            hand=self.hand,
+            deck=len(self.deck),
         )
 
     def create(self, *args, **kwargs):
@@ -307,11 +306,9 @@ class Card(Object):
         self.cost = cost
 
     def __str__(self):
-        return '({abilities}{name} #{dob}, {cost})'.format(
+        return '({name}, {cost})'.format(
             name=self.name,
-            dob=self.dob,
             cost=self.cost,
-            abilities='*' if self.abilities else '',
         )
 
     def can_play(self):
@@ -330,16 +327,6 @@ class MinionCard(Card):
         self.attack = attack
         self.health = health
         self.abilities = Dict(kwargs)
-
-    def __str__(self):
-        return '({abilities}{name} #{dob}, {cost}, {attack}, {health})'.format(
-            name=self.name,
-            dob=self.dob,
-            cost=self.cost,
-            attack=self.attack,
-            health=self.health,
-            abilities='*' if self.abilities else '',
-        )
 
     def can_play(self):
         return super().can_play() and len(self.owner.battlefield) < 7
@@ -387,16 +374,17 @@ class Character(Entity):
         super().__init__(name)
         self.attack = attack
         self.health = health
+        self.full_health = health
         self.attack_count = 0
         self.attack_limit = 1
         self.abilities = Dict()
 
     def __str__(self):
-        return '({abilities}{name} #{dob}, {attack}, {health})'.format(
+        return '({name}{abilities}, {attack}, {health}/{full_health})'.format(
             name=self.name,
-            dob=self.dob,
             attack=self.attack,
             health=self.health,
+            full_health=self.full_health,
             abilities='*' if self.abilities else '',
         )
 
@@ -433,6 +421,17 @@ class Hero(Character):
 
     def __init__(self, name, health):
         super().__init__(name, 0, health)
+        self.armor = 0
+
+    def __str__(self):
+        return '({name}{abilities}, {attack}, {health}/{full_health}, {armor})'.format(
+            name=self.name,
+            attack=self.attack,
+            health=self.health,
+            full_health=self.full_health,
+            armor=self.armor,
+            abilities='*' if self.abilities else '',
+        )
 
 
 class Minion(Character):
